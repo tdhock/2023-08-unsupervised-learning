@@ -1,0 +1,606 @@
+---
+title: "Clustering and k-means"
+author: "Toby Dylan Hocking"
+output: beamer_presentation
+---
+
+```{r opts, echo=FALSE}
+knitr::opts_chunk$set(
+  echo=FALSE, results=FALSE,
+  fig.width=10,
+  fig.height=6)
+```
+
+# Visualize iris data with labels
+
+```{r}
+library(ggplot2)
+color.code <- c(
+  setosa="#1B9E77",
+  versicolor="#D95F02",
+  virginica="#7570B3",
+  "1"="#E7298A",
+  "2"="#66A61E",
+  "3"="#E6AB02", 
+  "4"="#A6761D")
+gg <- ggplot()+
+  scale_color_manual(values=color.code)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=Species),
+    data=iris)+
+  coord_equal()
+directlabels::direct.label(gg, "smart.grid")
+```
+
+---
+
+# Visualize iris data without labels
+
+- Let $X\in\mathbb R^{150\times 2}$ be the data matrix (input for clustering).
+
+```{r results=TRUE}
+data.mat <- as.matrix(iris[,c("Petal.Width","Petal.Length")])
+head(data.mat)
+```
+
+```{r fig.height=3}
+theme_set(
+  ##theme_bw()+theme(panel.spacing=grid::unit(0, "lines"))
+  theme_grey()+theme(text=element_text(size=20))
+)
+ggplot()+
+  geom_point(aes(
+    Petal.Length, Petal.Width),
+    data=iris)+
+  coord_equal()
+```
+
+---
+
+# Visualize several clusterings 
+
+```{r}
+library(data.table)
+kmeans.clusters.list <- list()
+for(n.clusters in 2:4){
+  fit.list <- kmeans(data.mat, n.clusters)
+  fit.dt <- rbind(
+    data.table(
+      type="data",
+      data.mat,
+      cluster=factor(fit.list$cluster)),
+    data.table(
+      type="centers",
+      fit.list$centers,
+      cluster=factor(1:n.clusters)))
+  kmeans.clusters.list[[paste(n.clusters)]] <- data.table(n.clusters, fit.dt)
+}
+kmeans.clusters <- do.call(rbind, kmeans.clusters.list)
+kmeans.data <- kmeans.clusters[type=="data"]
+head(kmeans.data)
+gg <- ggplot()+
+  scale_color_manual(values=color.code)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=cluster),
+    data=kmeans.data)+
+  coord_equal()+
+  facet_grid(n.clusters ~ ., labeller=label_both)
+directlabels::direct.label(gg, "smart.grid")
+```
+
+- K-means algorithm (kmeans function in R).
+- Which K is best? How to choose number of clusters?
+
+```{r}
+plotK <- function(K){
+  fit.list <- kmeans(data.mat, K)
+  plotCluster(fit.list$cluster)
+}
+plotCluster <- function(cluster){
+  kmeans.wide <- data.table(
+    data.mat,
+    label=iris$Species,
+    cluster=factor(cluster))
+  kmeans.compare <- melt(
+    kmeans.wide,
+    measure=c("label", "cluster"),
+    variable.name="type")
+  gg <- ggplot()+
+    scale_color_manual(values=color.code)+
+    kmeans.wide[, ggtitle(paste0(
+      "ARI=",
+      pdfCluster::adj.rand.index(label, cluster)))]+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=value),
+      data=kmeans.compare)+
+    coord_equal()+
+    facet_grid(type ~ ., labeller=label_both)
+  directlabels::direct.label(gg, "smart.grid")
+}
+```
+
+---
+
+# Adjusted Rand Index (ARI)
+
+- Measures agreement between two label/cluster vectors (the two
+  vectors must be the same size).
+- Number of labels does not have to be equal to the number of
+  clusters.
+- Labels may be different from clusters, and not obvious to match.
+- Here labels are species names (setosa, virginica, versicolor)
+  whereas clusters are integers (1, 2, 3).
+- Best value = 1 (perfect agreement).
+- Random/constant assignment = 0 (clustering meaningless).
+
+---
+
+# Compare two clusters to labels
+
+```{r}
+plotK(2)
+```
+
+---
+
+# Compare three clusters to labels
+
+```{r}
+plotK(3)
+```
+
+---
+
+# Compare four clusters to labels
+
+```{r}
+plotK(4)
+```
+
+---
+
+# Compare random clusters to labels
+
+```{r}
+plotCluster(as.integer(sample(iris$Species)))
+```
+
+---
+
+# Compute ARI for several clusterings 
+
+```{r, fig.height=3.5}
+kmeans.ARI.list <- list()
+n.clusters.vec <- 1:20
+for(n.clusters in n.clusters.vec){
+  fit.list <- kmeans(data.mat, n.clusters)
+  ARI <- pdfCluster::adj.rand.index(
+    iris$Species, fit.list$cluster)
+  kmeans.ARI.list[[paste(n.clusters)]] <- data.table(
+    n.clusters, ARI)
+}
+kmeans.ARI <- do.call(rbind, kmeans.ARI.list)
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_point(aes(
+    n.clusters, ARI),
+    data=kmeans.ARI)
+```
+
+- Which K is best? Clear peak at 3 clusters, which makes sense since
+  there are three species in these data.
+- How to choose number of clusters? We don't have access to labels
+  (here, species) at training time, when we run the clustering
+  algorithm.
+
+---
+
+# Visualization of squared error
+
+```{r}
+kmeans.centers <- kmeans.clusters[type=="centers"]
+kmeans.segs <- kmeans.centers[kmeans.data, on=c("n.clusters", "cluster")]
+shape.code <- c(data=1, centers=18)
+size.code <- c(data=3, centers=6)
+ggplot()+
+  scale_color_manual(values=color.code, guide="none")+
+  scale_shape_manual(values=shape.code)+
+  scale_size_manual(values=size.code)+
+  geom_segment(aes(
+    Petal.Length, Petal.Width,
+    xend=i.Petal.Length, yend=i.Petal.Width),
+    data=kmeans.segs)+
+  geom_text(aes(
+    7, 0.2, label=sprintf("error=%.2f", squared.error)),
+    data=kmeans.error[n.clusters %in% kmeans.centers$n.clusters],
+    hjust=1,
+    vjust=0)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=cluster, shape=type, size=type),
+    data=kmeans.clusters)+
+  directlabels::geom_dl(aes(
+    Petal.Length, Petal.Width, color=cluster, label=cluster),
+    data=kmeans.clusters,
+    method="smart.grid")+
+  coord_equal()+
+  facet_grid(n.clusters ~ ., labeller=label_both)
+```
+
+- Black line segments show distance from each data point to its
+  (closest) cluster center.
+- This is the distance/error that the K-means algorithm attempts to
+  minimize.
+
+---
+
+# Compute error for several clusterings 
+
+- Let $X\in\mathbb R^{150\times 2}$ be the data matrix.
+- Let $K$ be the number of clusters.
+- Let $H\in\mathbb \{0,1\}^{150\times K}$ be the matrix which assigns each
+  data point to a cluster (there is a one in every row).
+- Let $M\in\mathbb R^{K\times 2}$ be the matrix of cluster centers.
+- K-means wants to minimize the within-cluster squared error,
+
+$$ \min_{H,M} || \underbrace{X}_{\text{data}} - \underbrace{HM}_{\text{center}} ||_2^2 $$
+
+```{r, fig.height=3.5}
+kmeans.error.list <- list()
+for(n.clusters in n.clusters.vec){
+  fit.list <- kmeans(data.mat, n.clusters)
+  kmeans.error.list[[paste(n.clusters)]] <- data.table(
+    n.clusters,
+    squared.error=fit.list$tot.withinss)
+}
+kmeans.error <- do.call(rbind, kmeans.error.list)
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_point(aes(
+    n.clusters, squared.error),
+    data=kmeans.error)
+```
+
+--- 
+
+# Model selection via error curve analysis
+
+```{r, fig.height=3.5}
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_line(aes(
+    n.clusters, squared.error),
+    data=kmeans.error)
+```
+
+- These error values can be computed using only the input data
+  (labels/outputs are not required).
+- The curve stops decreasing rapidly after three clusters.
+- In general, for any problem/data set, making this plot and then
+  locating the "kink in the curve" is a good rule of thumb for
+  selecting the number of clusters.
+
+---
+
+# Visualize clusters using two random seeds
+
+```{r, fig.height=5}
+kmeans.seeds.list <- list()
+for(n.clusters in 2:4)for(seed in 1:2){
+  set.seed(seed)
+  fit.list <- kmeans(data.mat, n.clusters)
+  kmeans.seeds.list[[paste(n.clusters, seed)]] <- data.table(
+    n.clusters,
+    seed,
+    error=fit.list$tot.withinss,
+    data.mat,
+    cluster=factor(fit.list$cluster))
+}
+kmeans.seeds <- do.call(rbind, kmeans.seeds.list)
+head(kmeans.seeds)
+gg <- ggplot()+
+  scale_color_manual(values=color.code)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=cluster),
+    data=kmeans.seeds)+
+  coord_equal()+
+  facet_grid(n.clusters ~ seed, labeller=label_both)
+(dl <- directlabels::direct.label(gg, "smart.grid"))
+```
+
+- Goal of K-means is to minimize the squared error.
+- Hard non-convex problem due to the 0/1 valued $H$ matrix.
+- So not possible to get global (absolute best) minimum in
+  practice. Instead K-means returns a local minimum.
+- Result of K-means algorithm, and quality of local minimum, depends
+  on the intialization / random seed.
+  
+---
+
+# Choose between seeds using min error
+
+```{r}
+seed.err <- kmeans.seeds[, .(
+  data=.N
+), by=.(n.clusters, seed, error)]
+dl+
+  geom_text(aes(
+    7, 0.2, label=sprintf("error=%.2f", error)),
+    data=seed.err,
+    hjust=1,
+    vjust=0)
+```
+
+- Try several different random seeds.
+- Keep the result with minimum error.
+
+---
+
+# K-means starts with three random cluster centers
+
+```{r}
+n.clusters <- 3
+data.dt <- data.table(data.mat)
+set.seed(5)
+##set.seed(3)#takes more iterations.
+centers.dt <- data.dt[sample(1:.N, n.clusters)]
+centers.mat <- as.matrix(centers.dt)
+centers.dt[, cluster := factor(1:n.clusters)]
+dl.dt <- rbind(
+  data.table(data.dt, cluster=0),
+  centers.dt)
+ggplot()+
+  scale_color_manual(values=color.code, guide="none")+
+  geom_point(aes(
+    Petal.Length, Petal.Width),
+    data=data.dt)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=cluster),
+    data=centers.dt)+
+  directlabels::geom_dl(aes(
+    Petal.Length, Petal.Width, color=cluster, label=cluster),
+    data=dl.dt,
+    method=list(
+      "smart.grid",
+      function(d,...)subset(d, as.integer(paste(groups))>0))
+    )+
+  coord_equal()
+```
+
+---
+
+# Compute closest cluster center for each data point
+
+```{r}
+pairs.dt <- data.table(expand.grid(
+  data.i=1:nrow(data.mat),
+  centers.i=1:nrow(centers.mat)))
+update.closest <- function(){
+  pairs.dt[, error := rowSums((data.mat[data.i,]-centers.mat[centers.i,])^2)]
+  closest.dt <<- pairs.dt[, .SD[which.min(error)], by=data.i]
+}
+update.closest()
+show.dt.list <- list()
+show.one <- function(show.i){
+  dist.dt <- data.table(
+    centers.dt,
+    data.dt[show.i, .(width=Petal.Width, length=Petal.Length)])
+  show.dt.list[[paste(show.i)]] <<- closest.dt[
+    show.i, .(data.dt[data.i], cluster=factor(centers.i)) ]
+  show.dt <- do.call(rbind, show.dt.list)
+  ggplot()+
+    scale_color_manual(values=color.code, guide="none")+
+    geom_point(aes(
+      Petal.Length, Petal.Width),
+      color="grey50",
+      data=data.dt)+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=cluster),
+      shape=shape.code[["centers"]],
+      size=size.code[["centers"]],
+      data=centers.dt)+
+    directlabels::geom_dl(aes(
+      Petal.Length, Petal.Width, color=cluster, label=cluster),
+      data=dl.dt,
+      method=list(
+        "smart.grid",
+        function(d,...)subset(d, as.integer(paste(groups))>0))
+      )+
+    coord_equal()+
+    geom_segment(aes(
+      length, width,
+      xend=Petal.Length, yend=Petal.Width),
+      data=dist.dt)+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=cluster),
+      data=show.dt)
+}
+show.one(10)
+```
+
+---
+
+# Compute closest cluster center for each data point
+
+```{r}
+show.one(50)
+```
+
+---
+
+# Compute closest cluster center for each data point
+
+```{r}
+show.one(150)
+```
+
+---
+
+# Compute closest cluster center for each data point
+
+```{r}
+show.one(115)
+```
+
+---
+
+# Compute closest cluster center for each data point
+
+```{r}
+show.one(80)
+```
+
+---
+
+# All data points assigned to nearest cluster
+
+```{r}
+data.and.centers <- function(){
+  both.dt <- rbind(
+    data.table(type="centers", centers.dt),
+    closest.dt[, .(type="data", data.dt[data.i], cluster=factor(centers.i))])
+  ggplot()+
+    scale_color_manual(values=color.code, guide="none")+
+    scale_size_manual(values=size.code)+
+    scale_shape_manual(values=shape.code)+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=cluster, size=type, shape=type),
+      data=both.dt)+
+    coord_equal()
+}
+data.and.centers()
+```
+
+---
+
+# Cluster centers updated
+
+```{r}
+update.centers <- function(){
+  new.dt <- closest.dt[, data.table(
+    t(colMeans(data.dt[data.i]))
+  ), by=.(cluster=centers.i)]
+  centers.dt <<- new.dt[, names(centers.dt), with=FALSE]
+  centers.mat <<- as.matrix(centers.dt[, colnames(centers.mat), with=FALSE])
+}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute new assignments
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute new centers 
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute assignments iteration 3
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute centers iteration 3
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute assignments iteration 4
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute centers iteration 4
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute assignments iteration 5
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute centers iteration 5
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+
+---
+
+# Compute assignments iteration 6
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute centers iteration 6
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute assignments iteration 7
+
+```{r}
+update.closest()
+data.and.centers()
+```
+
+---
+
+# Compute centers iteration 7
+
+```{r}
+update.centers()
+data.and.centers()
+```
+
+---
+
+# Compute assignments iteration 8 (no change = stop)
+
+```{r}
+update.closest()
+data.and.centers()
+```
+

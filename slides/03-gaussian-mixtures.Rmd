@@ -1,0 +1,1064 @@
+---
+title: "Gaussian mixture models"
+author: "Toby Dylan Hocking"
+output: beamer_presentation
+---
+
+```{r opts, echo=FALSE}
+knitr::opts_chunk$set(
+  echo=FALSE, results=FALSE,
+  fig.width=10,
+  fig.height=6)
+```
+
+# Visualize iris data with labels
+
+```{r}
+library(ggplot2)
+color.code <- c(
+  setosa="#1B9E77",
+  versicolor="#D95F02",
+  virginica="#7570B3",
+  "1"="#E7298A",
+  "2"="#66A61E",
+  "3"="#E6AB02", 
+  "4"="#A6761D")
+gg <- ggplot()+
+  scale_color_manual(values=color.code)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=Species),
+    data=iris)+
+  coord_equal()
+directlabels::direct.label(gg, "smart.grid")
+```
+
+---
+
+# Visualize iris data without labels
+
+- Let $X = [x_1 \cdots x_n]^\intercal \in\mathbb R^{n\times p}$ be the
+  data matrix (input for clustering), where $x_i\in\mathbb R^p$ is the
+  input vector for observation $i$.
+- Example iris $n=150$ observations, $p=2$ dimensions.
+
+```{r results=TRUE}
+data.mat <- as.matrix(iris[,c("Petal.Width","Petal.Length")])
+data.mat[1:4,]
+```
+
+```{r fig.height=3}
+theme_set(
+  ##theme_bw()+theme(panel.spacing=grid::unit(0, "lines"))
+  theme_grey()+theme(text=element_text(size=20))
+)
+ggplot()+
+  geom_point(aes(
+    Petal.Length, Petal.Width),
+    data=iris)+
+  coord_equal()
+
+get_ellipse_points <- function(mu, sigma, k=15){
+  ## from mvn2plot, explanation on
+  ## https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
+  p <- length(mu)
+  if (p != 2) 
+    stop("only two-dimensional case is available")
+  if (any(unique(dim(sigma)) != p)) 
+    stop("mu and sigma are incompatible")
+  ev <- eigen(sigma, symmetric = TRUE)
+  s <- sqrt(rev(sort(ev$values)))
+  V <- t(ev$vectors[, rev(order(ev$values))])
+  theta <- (0:k) * (pi/(2 * k))
+  x <- s[1] * cos(theta)
+  y <- s[2] * sin(theta)
+  xy <- cbind(c(x, rev(-x), -x, rev(x)), c(y, rev(y), -y, rev(-y))) %*% V
+  out <- sweep(xy, MARGIN = 2, STATS = mu, FUN = "+")
+  colnames(out) <- names(mu)
+  out
+}  
+library(data.table)
+x.args <- apply(data.mat, 2, function(x){
+  seq(min(x), max(x), by=0.1)
+})
+grid.dt <- data.table(do.call(expand.grid, x.args))
+grid.mat <- as.matrix(grid.dt)
+library(mclust)
+plotMclustType <- function(type){
+  gmm.clusters.list <- list()
+  gmm.density.list <- list()
+  gmm.ellipse.list <- list()
+  for(n.clusters in 2:4){
+    fit.list <- mclust::Mclust(data.mat, n.clusters, type, verbose=FALSE)
+    var.list <- fit.list$parameters$variance
+    cov.array <- var.list$sigma
+    if(n.clusters==3){
+      ##print(cov.array)
+      some.names <- !names(var.list) %in% c("modelName", "d", "G")
+      cov.wide = matrix(
+        var.list$sigma,
+        2, 2*n.clusters,
+        dimnames=list(
+          c("width", "length"),
+          rep(paste0("c", 1:n.clusters), each=2)))
+      ##print(var.list[some.names])
+      print(round(cov.wide, digits=4))
+    }
+    if(FALSE){
+      ## equal volume means product of covariance diagonal.
+      apply(apply(cov.array, 3, diag), 2, prod)
+    }
+    for(cluster in 1:n.clusters){
+      cluster.mean.vec <- fit.list$parameters$mean[,cluster]
+      cluster.cov.mat <- cov.array[, , cluster]
+      density <- mvtnorm::dmvnorm(
+        grid.mat,
+        cluster.mean.vec,
+        cluster.cov.mat)
+      gmm.ellipse.list[[paste(n.clusters, cluster)]] <- data.table(
+        n.clusters,
+        cluster=factor(cluster),
+        get_ellipse_points(cluster.mean.vec, cluster.cov.mat))
+      gmm.density.list[[paste(n.clusters, cluster)]] <- data.table(
+        n.clusters,
+        cluster=factor(cluster),
+        grid.mat,
+        density)
+    }
+    fit.dt <- rbind(
+      data.table(
+        type="data",
+        data.mat,
+        cluster=factor(fit.list$classification)),
+      data.table(
+        type="centers",
+        t(fit.list$parameters$mean),
+        cluster=factor(1:n.clusters)))
+    gmm.clusters.list[[paste(n.clusters)]] <- data.table(n.clusters, fit.dt)
+  }
+  gmm.clusters <- do.call(rbind, gmm.clusters.list)
+  gmm.density <- do.call(rbind, gmm.density.list)
+  gmm.ellipse <- do.call(rbind, gmm.ellipse.list)
+  gmm.data <- gmm.clusters[type=="data"]
+  head(gmm.data)
+  gg <- ggplot()+
+    scale_color_manual(values=color.code)+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=cluster),
+      shape=1,
+      data=gmm.data)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster),
+      size=2,
+      color="white",
+      data=gmm.ellipse)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster, color=cluster),
+      size=1,
+      data=gmm.ellipse)+
+    scale_size_manual(values=c(1,2))+
+    coord_equal(xlim=c(0,7), ylim=c(-0.5, 3))+
+    facet_grid(n.clusters ~ ., labeller=label_both)
+  directlabels::direct.label(gg, "smart.grid")
+}
+
+ari.type <- "VII"
+plotK <- function(n.clusters){
+  fit.list <- mclust::Mclust(data.mat, n.clusters, ari.type, verbose=FALSE)
+  gmm.ellipse.list <- list()
+  for(cluster in 1:n.clusters){
+    cluster.mean.vec <- fit.list$parameters$mean[,cluster]
+    cluster.cov.mat <- fit.list$parameters$variance$sigma[,,cluster]
+    gmm.ellipse.list[[paste(cluster)]] <- data.table(
+      type="cluster",
+      cluster=factor(cluster),
+      get_ellipse_points(cluster.mean.vec, cluster.cov.mat))
+  }
+  gmm.ellipse <- do.call(rbind, gmm.ellipse.list)
+  gmm.wide <- data.table(
+    data.mat,
+    label=iris$Species,
+    cluster=factor(fit.list$classification))
+  gmm.compare <- melt(
+    gmm.wide,
+    measure=c("label", "cluster"),
+    variable.name="type")
+  gg <- ggplot()+
+    scale_color_manual(values=color.code)+
+    gmm.wide[, ggtitle(paste0(
+      "ARI=",
+      pdfCluster::adj.rand.index(label, cluster)))]+
+    geom_point(aes(
+      Petal.Length, Petal.Width, color=value),
+      data=gmm.compare)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster, color=cluster),
+      size=2,
+      color="white",
+      data=gmm.ellipse)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster, color=cluster),
+      size=1,
+      data=gmm.ellipse)+
+    coord_equal()+
+    facet_grid(type ~ ., labeller=label_both)
+  directlabels::direct.label(gg, "smart.grid")
+}
+
+
+```
+
+---
+
+# Gaussian mixture model parameters and EM algorithm
+
+Need to fix number of clusters $K$, then for every
+$k\in\mathbb\{1,\dots,K\}$ we have cluster-specific parameters
+$\theta_k = [\mu_k, S_k, \pi_k]$ which are updated during M step,
+
+- mean vector $\mu_k\in\mathbb R^p$,
+- covariance matrix $S_k\in\mathbb R^{p\times p}$, (must be symmetric,
+  positive definite, next slides show optional additional constraints)
+- prior weight $\pi_k\in[0,1]$ (sum over all clusters $k$ must equal
+  one).
+  
+During E step we compute the probability matrix $T\in\mathbb
+[0,1]^{n\times K}$, where each row $i$ sums to 1 and each entry
+$T_{ik}$ is probability that data $i$ is in cluster $k$.
+
+---
+
+# spherical, equal volume
+
+```{r, results=TRUE}
+plotMclustType("EII")
+```
+
+---
+
+# spherical, unequal volume
+
+```{r, results=TRUE}
+plotMclustType("VII")
+```
+
+---
+
+# diagonal, equal volume and shape
+
+```{r, results=TRUE}
+plotMclustType("EEI")
+```
+
+---
+
+# diagonal, varying volume, equal shape
+
+```{r, results=TRUE}
+plotMclustType("VEI")
+```
+
+---
+
+# diagonal, equal volume, varying shape
+
+```{r, results=TRUE}
+plotMclustType("EVI")
+```
+
+---
+
+# diagonal, varying volume and shape
+
+```{r, results=TRUE}
+plotMclustType("VVI")
+```
+
+# ellipsoidal, equal volume, shape, and orientation
+
+```{r, results=TRUE}
+plotMclustType("EEE")
+```
+
+# ellipsoidal, varying volume, shape, and orientation
+
+```{r, results=TRUE}
+plotMclustType("VVV")
+```
+
+---
+
+# Compare two clusters to labels
+
+```{r}
+plotK(2)
+```
+
+---
+
+# Compare three clusters to labels
+
+```{r}
+plotK(3)
+```
+
+---
+
+# Compare four clusters to labels
+
+```{r}
+plotK(4)
+```
+
+---
+
+# Compute ARI for several clusterings 
+
+```{r, fig.height=3.5}
+gmm.ARI.list <- list()
+n.clusters.vec <- 1:10
+for(n.clusters in n.clusters.vec){
+  kmeans.result <- kmeans(data.mat, n.clusters)
+  initial.z <- unmap(kmeans.result$cluster)
+  fit.list <- mclust::Mclust(data.mat, n.clusters, ari.type, verbose=FALSE)
+  ARI <- pdfCluster::adj.rand.index(
+    iris$Species, fit.list$classification)
+  gmm.ARI.list[[paste(n.clusters)]] <- data.table(
+    n.clusters, ARI, log.lik=fit.list$loglik)
+}
+gmm.ARI <- do.call(rbind, gmm.ARI.list)
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_point(aes(
+    n.clusters, ARI),
+    data=gmm.ARI)
+```
+
+- Which K is best? Clear peak at 3 clusters, which makes sense since
+  there are three species in these data.
+
+---
+
+# Visualization of log likelihood
+
+```{r}
+data.density.list <- list()
+grid.density.list <- list()
+data.lik.list <- list()
+for(n.clusters in 2:4){
+  fit.list <- mclust::Mclust(data.mat, n.clusters, ari.type, verbose=FALSE)
+  log.lik <- sum(mclust::dens(
+    fit.list$modelName, data.mat, log=TRUE, parameters=fit.list$parameters))
+  data.lik.list[[paste(n.clusters)]] <- data.table(
+    n.clusters, log.lik)
+  data.density.list[[paste(n.clusters)]] <- data.table(
+    n.clusters,
+    data.mat,
+    density=mclust::dens(
+      fit.list$modelName, data.mat, parameters=fit.list$parameters))
+  grid.density.list[[paste(n.clusters)]] <- data.table(
+    n.clusters,
+    grid.mat,
+    density=mclust::dens(
+      fit.list$modelName, grid.mat, parameters=fit.list$parameters))
+}
+data.density <- do.call(rbind, data.density.list)
+data.lik <- do.call(rbind, data.lik.list)
+grid.density <- do.call(rbind, grid.density.list)
+ggplot()+
+  geom_raster(aes(
+    Petal.Length, Petal.Width, fill=density),
+    data=grid.density)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, fill=density),
+    shape=21,
+    data=data.density)+
+  coord_equal()+
+  facet_grid(n.clusters ~ ., labeller=label_both)+
+  geom_text(aes(
+    7, 0.2, label=sprintf("log(likelihood)=%.2f", log.lik)),
+    data=data.lik,
+    hjust=1,
+    vjust=0)+
+  scale_fill_gradient(
+    low="white",
+    high="red",
+    trans="log10",
+    limits=range(data.density$density),
+    na.value = "white")
+```
+
+- Darker red means larger density value from learned model.
+- The total redness in the data points represents the log likelihood,
+  which is what the EM algorithm attempts to maximize.
+  
+---
+
+# Visualize density using level curves
+
+```{r}
+show.breaks <- 10^seq(-3, 0, by=1)
+ggplot()+
+  geom_point(aes(
+    Petal.Length, Petal.Width, fill=density),
+    shape=21,
+    data=data.density)+
+  geom_contour(aes(
+    Petal.Length, Petal.Width, z=density, color=..level..),
+    breaks=show.breaks,
+    data=grid.density)+
+  metR::geom_text_contour(aes(
+    Petal.Length, Petal.Width, z=density),
+    breaks=show.breaks,
+    skip=0,
+    stroke=0.2,
+    ##label.placement = metR::label_placement_n(2),
+    data=grid.density)+
+  coord_equal()+
+  facet_grid(n.clusters ~ ., labeller=label_both)+
+  geom_text(aes(
+    1, 2.5, label=sprintf("log(likelihood)=%.2f", log.lik)),
+    data=data.lik,
+    hjust=0,
+    vjust=1)+
+  scale_fill_gradient(
+    low="white",
+    high="red",
+    trans="log10",
+    limits=range(data.density$density),
+    na.value = "white")+
+  scale_color_gradient(
+    low="white",
+    high="red",
+    trans="log10",
+    limits=range(data.density$density),
+    na.value = "white")+
+  theme(legend.position="none")
+```
+
+---
+
+# Compute log likelihood for several clusterings 
+
+```{r, fig.height=3.5}
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_point(aes(
+    n.clusters, log.lik),
+    data=gmm.ARI)
+```
+
+--- 
+
+# Model selection via error curve analysis (negative log likelihood)
+
+```{r, fig.height=3.5}
+ggplot()+
+  scale_x_continuous(breaks=n.clusters.vec)+
+  geom_line(aes(
+    n.clusters, -log.lik),
+    data=gmm.ARI)
+```
+
+- These error values can be computed using only the input data
+  (labels/outputs are not required).
+- In general, for any problem/data set, making this plot and then
+  locating the "kink in the curve" is a good rule of thumb for
+  selecting the number of clusters.
+
+---
+
+# Visualize clusters using two random seeds
+
+```{r, fig.height=5}
+gmm.seeds.list <- list()
+gmm.ellipse.list <- list()
+for(n.clusters in 2:4)for(seed in 2:3){
+  set.seed(seed)
+  kmeans.result <- kmeans(data.mat, n.clusters)
+  init.z <- unmap(kmeans.result$cluster)
+  ##fit.list <- mclust::me(data.mat, "VEI", init.z)
+  fit.list <- mclust::me(data.mat, "VEE", init.z)
+  ##fit.list <- mclust::Mclust(data.mat, n.clusters, "VVV", verbose=FALSE)
+  for(cluster in 1:n.clusters){
+    cluster.mean.vec <- fit.list$parameters$mean[,cluster]
+    cluster.cov.mat <- fit.list$parameters$variance$sigma[,,cluster]
+    gmm.ellipse.list[[paste(n.clusters, seed, cluster)]] <- data.table(
+      n.clusters,
+      seed,
+      cluster=factor(cluster),
+      get_ellipse_points(cluster.mean.vec, cluster.cov.mat))
+  }
+  dens.mat <- with(
+    fit.list, cdens(modelName, data.mat, parameters=parameters))
+  gmm.seeds.list[[paste(n.clusters, seed)]] <- data.table(
+    n.clusters,
+    seed,
+    error=-fit.list$loglik,
+    data.mat,
+    cluster=factor(apply(dens.mat,1,which.max)))
+}
+gmm.seeds <- do.call(rbind, gmm.seeds.list)
+gmm.ellipse <- do.call(rbind, gmm.ellipse.list)
+head(gmm.seeds)
+gg <- ggplot()+
+  scale_color_manual(values=color.code)+
+  scale_fill_manual(values=color.code)+
+  geom_point(aes(
+    Petal.Length, Petal.Width, fill=cluster),
+    shape=21,
+    color="black",
+    data=gmm.seeds)+
+  geom_text(aes(
+    1, 2.5, label=sprintf("error=%.4f", error)),
+    hjust=0,
+    vjust=1,
+    data=gmm.seeds[, .(count=.N), by=.(n.clusters, seed, error)])+
+  geom_path(aes(
+    Petal.Length, Petal.Width, group=cluster, color=cluster),
+    size=2,
+    color="white",
+    data=gmm.ellipse)+
+  geom_path(aes(
+    Petal.Length, Petal.Width, group=cluster, color=cluster),
+    size=1,
+    data=gmm.ellipse)+
+  coord_equal()+
+  facet_grid(n.clusters ~ seed, labeller=label_both)
+(dl <- directlabels::direct.label(gg, "smart.grid"))
+```
+
+- Different seeds used for initial assignment based on K-means.
+- EM solution quality depends on random seed (not much variation in
+  these simple data though).
+  
+---
+
+# EM algo update rules
+
+Let $f(x, \mu, S)$ be the (multivariate) normal density for a feature
+vector $x\in\mathbb R^p$, a mean vector $\mu\in\mathbb R^p$, and a
+covariance matrix $S\in\mathbb R^{p\times p}$.
+
+In the E step we update the probability matrix,
+$$T_{ik} \gets \frac{\pi_k f(x_i, \mu_k, S_k)}{\sum_{k'=1}^K \pi_{k'} f(x_i, \mu_{k'}, S_{k'})}$$.
+
+In the M step we update the cluster parameters, 
+
+- $\pi_k \gets \frac{1}{n}\sum_{i=1}^n T_{i,k}$,
+- $\mu_k \gets \frac{\sum_{i=1}^n T_{i,k} x_i}{\sum_{i=1}^n T_{i,k}}$,
+- $S_k \gets \frac{\sum_{i=1}^n T_{i,k} (x_i-\mu_k)(x_i-\mu_k)^\intercal}{\sum_{i=1}^n T_{i,k}}$ (no constraints).
+
+---
+
+# Where do these update rules come from?
+
+The goal of the algorithm is to find model parameters that maximize
+the log likelihood, $\log L(x, \theta, T)$.
+
+$$\max_\theta \log L(x, \theta, T)$$
+$$\max_T \log L(x, \theta, T)$$
+
+- Use gradient condition to derive $T,\theta$ which maximize the
+  likelihood given the data and other parameters.
+- Covariance constraints affect the $\theta$ update rule. For example
+  diagonal covariance update,
+- $S_k \gets \frac{\sum_{i=1}^n \text{Diag}[T_{i,k} (x_i-\mu_k)(x_i-\mu_k)^\intercal]}{\sum_{i=1}^n T_{i,k}}$ (diagonal constraint).
+- $j$-th entry/feature of $S_k$ is $\sum_{i=1}^n T_{i,k} D_{i,j}^2$
+  where $D\in\mathbb R^{n\times p}$ is the difference matrix
+  $X-\mu_k$. (avoids matrix multiplication, linear rather than
+  quadratic time in feature dimension $p$)
+  
+---
+
+# Numerical issues (underflow)
+
+To avoid numerical issues in EM algorithm we need to
+
+- Use the log density with max probability trick, to avoid non-finite
+  probability values in E step.
+  
+$$T_{ik} \gets \frac{\pi_k f(x_i, \mu_k, S_k)}{\sum_{k'=1}^K \pi_{k'} f(x_i, \mu_{k'}, S_{k'})}$$
+$$\log T_{ik} \gets \log \pi_k + \log f(x_i,\mu_{k'},S_{k'}) - Z$$
+$$Z = M + \log[ e^M \sum_{k'=1}^K \pi_{k'} e^{\log f(x_i,\mu_{k'},S_{k'}) - M} ]$$
+$$M = \max_{k'\in\{1,\dots,K\}} \log f(x_i,\mu_{k'},S_{k'})$$
+
+- Add a small number, $\lambda=10^{-6}$ to the diagonal of the covariance
+  matrix to avoid zero variance in M step, $S_k \gets \frac{\sum_{i=1}^n  T_{i,k}(x_i-\mu_k)(x_i-\mu_k)^\intercal}{\sum_{i=1}^n T_{i,k}} +  \lambda I_p$.
+  
+---
+
+# EM algo starting with K-means assignments
+
+```{r}
+n.clusters <- 2
+set.seed(5)
+##set.seed(3)#takes more iterations.
+kmeans.result <- kmeans(data.mat, n.clusters)
+data.dt <- data.table(data.mat, cluster=factor(kmeans.result[["cluster"]]))
+prob.mat <- matrix(
+  0, nrow(data.mat), n.clusters,
+  dimnames=list(data=1:nrow(data.mat), cluster=NULL))
+prob.mat[cbind(1:nrow(data.mat), kmeans.result$cluster)] <- 1
+set.seed(1)
+print(prob.mat[sample(1:nrow(prob.mat), 6),])
+gg <- ggplot()+
+  scale_color_manual(values=color.code, guide="none")+
+  geom_point(aes(
+    Petal.Length, Petal.Width, color=cluster),
+    data=data.dt)+
+  coord_equal()
+(dl <- directlabels::direct.label(gg, "smart.grid"))
+```
+
+---
+
+# Compute weights, means, covariance matrices
+
+```{r}
+cluster.param.list <- list()
+update.cluster.params = function(){
+  cluster.ellipse.dt.list <- list()
+  for(cluster in 1:n.clusters){
+    prob.vec <- prob.mat[,cluster]
+    these.params <- list(
+      prior.weight=mean(prob.vec),
+      mean.vec=colSums(prob.vec * data.mat)/sum(prob.vec))
+    diff.mat <- t(data.mat)-these.params$mean.vec
+    these.params$cov.mat <-
+      diff.mat %*% (prob.vec * t(diff.mat))/sum(prob.vec)
+    cluster.ellipse.dt.list[[cluster]] <- data.table(
+      cluster=factor(cluster),
+      with(these.params, get_ellipse_points(mean.vec, cov.mat)))
+    cluster.param.list[[cluster]] <<- these.params
+  }
+  cluster.ellipse.dt <<- do.call(rbind, cluster.ellipse.dt.list)
+}
+data.and.ellipses = function(){
+  ll.mat = matrix(NA, nrow(data.mat), n.clusters)
+  for(cluster in 1:n.clusters){
+    ll.mat[,cluster] = with(
+      cluster.param.list[[cluster]],
+      prior.weight*mvtnorm::dmvnorm(
+        data.mat, mean.vec, cov.mat))
+  }
+  ll.dt <- data.table(log.lik=sum(log(rowSums(ll.mat))))
+  data.dt[, prob1 := prob.mat[,1] ]
+  ggplot()+
+    scale_color_manual(values=color.code, guide="none")+
+    geom_point(aes(
+      Petal.Length, Petal.Width, fill=prob1),
+      shape=21,
+      data=data.dt)+
+    geom_text(aes(
+      1, 2.5, label=sprintf("log(lik)=%.4f", log.lik)),
+      hjust=0,
+      vjust=1,
+      data=ll.dt)+
+    scale_fill_gradient2(
+      limits=c(0,1),
+      high=color.code[["1"]],
+      midpoint=0.5,
+      low=color.code[["2"]])+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster),
+      color="white",
+      size=2,
+      data=cluster.ellipse.dt)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster, color=cluster),
+      size=1,
+      data=cluster.ellipse.dt)+
+    coord_equal()
+}
+
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Cluster probabilities updated
+
+```{r}
+update.prob.mat = function(){
+  numerator.mat = matrix(NA, nrow(data.mat), n.clusters)
+  for(cluster in 1:n.clusters){
+    numerator.mat[,cluster] = with(
+      cluster.param.list[[cluster]],
+      prior.weight*mvtnorm::dmvnorm(
+        data.mat, mean.vec, cov.mat))
+  }
+  prob.mat <<- numerator.mat/rowSums(numerator.mat)
+}
+
+update.prob.mat()
+data.and.ellipses()
+```
+
+---
+
+# Compute new cluster parameters
+
+```{r}
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Compute new cluster/data probabilities
+
+```{r}
+update.prob.mat()
+data.and.ellipses()
+```
+
+---
+
+# Compute cluster parameters iteration 3
+
+```{r}
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Compute probabilities iteration 3
+
+```{r}
+update.prob.mat()
+data.and.ellipses()
+```
+
+---
+
+# Compute cluster parameters iteration 4
+
+```{r}
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Compute probabilities iteration 4
+
+```{r}
+update.prob.mat()
+data.and.ellipses()
+```
+
+---
+
+# Compute cluster parameters iteration 5 (no change = stop)
+
+```{r}
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Three clusters, diagonal constraint, random initialization
+
+```{r}
+update.cluster.params = function(){
+  cluster.ellipse.dt.list <- list()
+  for(cluster in 1:n.clusters){
+    prob.vec <- prob.mat[,cluster]
+    these.params <- list(
+      prior.weight=mean(prob.vec),
+      mean.vec=colSums(prob.vec * data.mat)/sum(prob.vec))
+    diff.mat <- t(data.mat)-these.params$mean.vec
+    if(FALSE){#slow for high dimensional data.
+      ## diff.mat is p x n so computing Wk is O(p^2 n)
+      Wk <- diff.mat %*% (prob.vec * t(diff.mat)) #p x p.
+      Blk <- diag(diag(Wk)) #same as below but slower.
+    }
+    ## computing diag matrix below is only O(p n), faster by a factor
+    ## of p.
+    Blk <- diag(colSums(t(diff.mat)^2 * prob.vec))
+    these.params$cov.mat <- Blk/sum(prob.vec)
+    cluster.ellipse.dt.list[[cluster]] <- data.table(
+      cluster=factor(cluster),
+      with(these.params, get_ellipse_points(mean.vec, cov.mat)))
+    cluster.param.list[[cluster]] <<- these.params
+  }
+  cluster.ellipse.dt <<- do.call(rbind, cluster.ellipse.dt.list)
+}
+data.and.ellipses = function(){
+  ll.mat = matrix(NA, nrow(data.mat), n.clusters)
+  for(cluster in 1:n.clusters){
+    ll.mat[,cluster] = with(
+      cluster.param.list[[cluster]],
+      prior.weight*mvtnorm::dmvnorm(
+        data.mat, mean.vec, cov.mat))
+  }
+  ll.dt <- data.table(log.lik=sum(log(rowSums(ll.mat))))
+  data.dt[, cluster := factor(apply(prob.mat, 1, which.max)) ]
+  data.dt[, max.prob := apply(prob.mat, 1, max)]
+  gg <- ggplot()+
+    scale_fill_manual(values=color.code, guide="none")+
+    scale_color_manual(values=color.code, guide="none")+
+    scale_x_continuous(limits=c(0, 7))+
+    scale_y_continuous(limits=c(-0.2, 2.5))+
+    geom_point(aes(
+      Petal.Length, Petal.Width),
+      fill="white",
+      shape=21,
+      data=data.dt)+
+    geom_point(aes(
+      Petal.Length, Petal.Width, fill=cluster, alpha=max.prob),
+      shape=21,
+      data=data.dt)+
+    geom_text(aes(
+      1, 2.5, label=sprintf("log(lik)=%.4f", log.lik)),
+      hjust=0,
+      vjust=1,
+      data=ll.dt)+
+    scale_alpha_continuous(
+      limits=c(1/n.clusters,1))+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster),
+      color="white",
+      size=2,
+      data=cluster.ellipse.dt)+
+    geom_path(aes(
+      Petal.Length, Petal.Width, group=cluster, color=cluster),
+      size=1,
+      data=cluster.ellipse.dt)+
+    coord_equal()
+  directlabels::direct.label(gg, "smart.grid")
+}
+n.clusters <- 3
+rand.mat <- matrix(
+  0, nrow(data.mat), n.clusters,
+  dimnames=list(data=1:nrow(data.mat), cluster=NULL))
+set.seed(1)
+rand.mat[seq_along(rand.mat)] <- runif(length(rand.mat))
+prob.mat <- rand.mat/rowSums(rand.mat)
+
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 2
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 3
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 4
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 5
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 6
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 7
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 8
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 9
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 10
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 11
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 12
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 13
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 14
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 15
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 16
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 17
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 18
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 19
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# iteration 20
+
+```{r}
+update.prob.mat()
+update.cluster.params()
+data.and.ellipses()
+```
+
+---
+
+# Possible Exam Questions
+
+- How many real number parameters in an unconstrained gaussian mixture
+  model for data with $p=5$ features?
+- What hyper-parameter is common to K-means and Gaussian mixtures? (A
+  hyper-parameter is a model choice that must be fixed before running
+  the learning/EM algorithm)
+- What hyper-parameter is unique to Gaussian mixtures?
+- What cluster parameter is common to K-means and Gaussian mixtures?
+- What cluster parameters are present in Gaussian mixtures but not in
+  K-means?
+  
+---
+
+# Possible exam questions 2
+
+- We say K-means uses hard assignment and Gaussian mixtures uses soft
+  assignment -- what values are used in the probability/assignment
+  matrix in each case?
+- The K-means and Gaussian mixtures have similar learning
+  algorithms. What are the main steps in common and what is the
+  difference?
+- In K-means we compute the squared error, and in Gaussian mixtures we
+  compute the negative log likelihood -- these values INCREASE or
+  DECREASE as the number of clusters increase? These values INCREASE
+  or DECREASE as the number of iterations of the learning algorithm
+  increases?

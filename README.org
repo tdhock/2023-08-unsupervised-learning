@@ -86,7 +86,7 @@ you must come to office hours and show me that you can use interactive
 code execution.
 
 - [[https://drive.google.com/drive/folders/1PeTZJ29HRTM6BrsHTSHAdDfwZit8yA-P?usp=sharing][Folder of all class recordings and code demos from 2020]].
-- [[file:demos/][Folder with all code demos from 2021]].
+- [[https://github.com/tdhock/cs499-599-fall-2021/tree/main/demos][Folder with all code demos from 2021]].
 
 Yes you can copy and modify these code demos for your homework, since
 they are a part of the class material. But in general, copying code
