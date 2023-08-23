@@ -1,4 +1,4 @@
-Homework 8: Binary segmentation
+Homework 5: Binary segmentation
 
 The goal of this homework is to compute and plot binary segmentation
 models for sequence data, and compare the speed of two R packages.

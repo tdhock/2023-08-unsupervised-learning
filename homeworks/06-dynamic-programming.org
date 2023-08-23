@@ -1,4 +1,4 @@
-Homework 8: Dynamic programming for optimal changepoint detection
+Homework 6: Dynamic programming for optimal changepoint detection
 
 The goal of this homework is to explore dynamic programming algorithms
 for optimal changepoint detection, and compare to the binary
