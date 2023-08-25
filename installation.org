@@ -1,0 +1,49 @@
+
+To do the homeworks you need to use emacs and R.
+- emacs is the required IDE for the class. It allows you to write/edit
+  code without using the mouse, and has great R support, including
+  interactive execution, completion, ...
+  - [[https://www.gnu.org/software/emacs/download.html][Download and Install Emacs]].
+  - [[https://cloud.r-project.org/][Download and Install R]].
+- If you want to use a different IDE (not emacs), then you need to
+  come to office hours and show me that you can do interactive R
+  code execution in that other IDE. That means having one window with
+  R code, another window with R console, and you can use a
+  keyboard command to execute one or more lines of code at a time, and
+  immediately see the output in the console.
+
+After installing R, on windows you need to add R to the path, via windows key, type env, Edit the system environment variables, Environment variables..., Add, Path,  =C:\Program Files\R\R-4.3.1\bin\x64=
+
+** R support in emacs
+
+First of all, if this is your first time ever using emacs, please type
+C-h t (type h while holding down control, then let go of control and
+type t) to open the emacs tutorial. Read through the entire tutorial
+and do all of the exercises, which will teach you the most important
+keyboard shortcuts for navigating and editing code. Keep re-doing
+the tutorial every day until you remember all of the keyboard shortcuts.
+
+To get R support in emacs I had to install emacs packages
+(ess,polymode). To do that first you need to put the following in your
+~/.emacs file (which contains user-specific commands to run on emacs startup)
+to tell it to download packages from the MELPA
+repository,
+
+#+BEGIN_SRC elisp
+(require 'package)
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/") t)
+#+END_SRC
+
+After putting the above in your ~/.emacs you need to restart emacs,
+then run M-x package-list-packages (M-x means hold down the option/alt
+key and type x) to see a list of packages you can install. Search for
+ess and polymode (maybe with C-s, meaning hold down control key and
+type s), mark for installation by typing i, then type x to install all
+packages marked for installation. Finally to configure emacs you can
+use the ~/.emacs file, and to configure R you can execute commands at
+startup via the ~/.Rprofile file, see mine here:
+https://github.com/tdhock/dotfiles.
+
+See [[https://ess.r-project.org/][official ESS documentation]] for more info about how to use R in
+emacs, and watch [[https://www.youtube.com/playlist?list=PLwc48KSH3D1Onsed66FPLywMSIQmAhUYJ][my emacs video tutorials]].

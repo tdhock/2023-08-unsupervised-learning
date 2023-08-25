@@ -110,6 +110,7 @@ that week, 11:59PM.
 
 - Aug 28, [[file:homeworks/01-emacs-R-viz.org][Homework week 1]]: installing R/emacs, reading CSV, data
   visualization using ggplot2.
+  - [[file:installation.org][My emacs+ESS+R installation guide]].
   - [[https://www.youtube.com/watch?v=SRdzg-gzKXs&list=PLwc48KSH3D1M78ilQi35KPe2GHa7B_Rme&index=2&t=0s][My 20 minute intro to R video]],
     for more introductions to R and data visualization, see links
     under "For homeworks" above.
