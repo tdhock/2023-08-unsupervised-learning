@@ -1,6 +1,6 @@
 Computer Science 599 at Northern Arizona University, Fall 2023
 
-Topic: Unsupervised Learning
+Topic: Unsupervised Learning.
 
 Dates: Aug 28 - Dec 15.
 
@@ -166,7 +166,7 @@ that week, 11:59PM.
   - [[file:slides/14-other-dimensionality-reduction.pdf][Slides]], Reading: [[https://cloud.r-project.org/web/packages/dimRed/vignettes/dimensionality-reduction.pdf][dimRed vignette]], no quiz.
 - Dec 4, Reading week, [[file:exams/03-practice.org][final exam review questions]],
   [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
-- Dec 11, Final exam, TODO DATE.
+- Finals week, exam TODO DATE.
 
 ** General Questions and Answers (FAQ)
 
