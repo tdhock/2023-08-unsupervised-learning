@@ -113,8 +113,8 @@ that week, 11:59PM.
   - [[https://www.youtube.com/watch?v=SRdzg-gzKXs&list=PLwc48KSH3D1M78ilQi35KPe2GHa7B_Rme&index=2&t=0s][My 20 minute intro to R video]],
     for more introductions to R and data visualization, see links
     under "For homeworks" above.
-  - Quizzes Due Tues Aug 24: R Basics 1, R ggplot 1. Due Thurs Aug 26:
-    R ggplot 2, R ggplot 3.
+  - [[https://tdhock.github.io/blog/2023/essential-emacs-key-commands/][Essential emacs key commands]].
+  - Quizzes: R Basics 1, R ggplot 1.  R ggplot 2, R ggplot 3.
 - Sep 4, Labor day holiday. [[file:homeworks/02-kmeans.org][Homework week 2]]: K-means.
   - [[file:slides/02-clustering.pdf][Slides]], Introduction to clustering, MLAPP 25.1. Clustering evaluation,
     MLAPP-25.1.2. K-means is discussed in ESL-14.3.6, MLAPP-11.4.2.5.
