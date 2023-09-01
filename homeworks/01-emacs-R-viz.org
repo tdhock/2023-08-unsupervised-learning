@@ -24,23 +24,43 @@ Your goal is to write an R script that performs the following steps:
    label in the first column).
 2. use data.table::fread to read the compressed CSV data file into R
    as a data table. 
-3. Convert the data table to a numeric matrix, which is a more useful
-   data structure for clustering algorithms. Make sure to exclude the
-   label column (that is the first column).
-4. Use utils::str to print a compact representation of the structure
-   of your numeric matrix. What is the number of
+3. Convert the data table to a numeric matrix (as.matrix(DT)), which
+   is a more useful data structure for clustering algorithms. Make
+   sure to exclude the label column (that is the first column).
+4. Use utils::str(MAT) to print a compact representation of the
+   structure of your numeric matrix. What is the number of
    rows/observations/example digits? What is the number of
    columns/features/pixels per example?
+5. To make sure you are able to do interactive execution of R
+   code, take a screenshot which shows your emacs split vertically. In
+   one window there should be your R script, and in the other window
+   there should be the R console, with the prompt, the lines of code
+   you sent (from fread to str), and the corresponding output.
 5. Make a ggplot with geom_tile that visualizes one row from that data
-   set.
-6. (extra credit) Make a ggplot with facets that visualizes several
-   different rows from that data set (as seen in slides from class).
+   set. First you need to create a data set with columns: intensity
+   (with values -1 to 1), row (1 to 16, use rep), column (1 to 16, use
+   rep). Use aes(x=column, y=row, fill=intensity). If =gg= is your
+   ggplot object, you can use the code below to save it to a PNG file
+   on disk:
+
+#+begin_src R
+  png("one_image.png", height=5, width=5, units="in", res=100)
+  print(gg)
+  dev.off()
+#+end_src
+
+6. (extra credit) Make a ggplot with facet_wrap that visualizes
+   several different rows from that data set. You should use a for
+   loop, and the [[https://rcdata.nau.edu/genomic-ml/animint2-manual/Ch99-appendix.html#list-of-data-tables][list of data tables idiom]], to create a data table
+   with columns: intensity, row, column, label (with values 0 to 9),
+   observation (with values corresponding to the row number in the
+   original CSV file).
 
 For your homework please upload in bblearn a text file with your code,
-the corresponding results/output (after running your R code), and your
-commentary/interpretation/answers to questions.
+the corresponding results/output/screenshot (after running your R
+code), and your commentary/interpretation/answers to questions.
 
-** Part 2: advanced data visualization (CS599 GRAD STUDENTS ONLY)
+** Part 2: advanced data visualization (EXTRA CREDIT)
 
 These are exercises from
 https://rcdata.nau.edu/genomic-ml/animint2-manual/Ch02-ggplot2.html
