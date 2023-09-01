@@ -36,7 +36,7 @@ Your goal is to write an R script that performs the following steps:
    one window there should be your R script, and in the other window
    there should be the R console, with the prompt, the lines of code
    you sent (from fread to str), and the corresponding output.
-5. Make a ggplot with geom_tile that visualizes one row from that data
+6. Make a ggplot with geom_tile that visualizes one row from that data
    set. First you need to create a data set with columns: intensity
    (with values -1 to 1), row (1 to 16, use rep), column (1 to 16, use
    rep). Use aes(x=column, y=row, fill=intensity). If =gg= is your
