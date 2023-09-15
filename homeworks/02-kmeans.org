@@ -25,7 +25,7 @@ K-means clustering
 Please submit your code along with your figures and commentary in a
 single PDF.
 
-** For CS599 graduate students only:
+** For extra credit
 
 Code the K-means algorithm from scratch based on the pseudo-code in
 the textbooks. Start by taking K random data points as the initial K

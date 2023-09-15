@@ -115,51 +115,40 @@ that week, 11:59PM.
     for more introductions to R and data visualization, see links
     under "For homeworks" above.
   - [[https://tdhock.github.io/blog/2023/essential-emacs-key-commands/][Essential emacs key commands]].
-  - Quizzes: R Basics 1, R ggplot 1.  R ggplot 2, R ggplot 3.
 - Sep 4, Labor day holiday. [[file:homeworks/02-kmeans.org][Homework week 2]]: K-means.
   - [[file:slides/02-clustering.pdf][Slides]], Introduction to clustering, MLAPP 25.1. Clustering evaluation,
     MLAPP-25.1.2. K-means is discussed in ESL-14.3.6, MLAPP-11.4.2.5.
-  - Quizzes: Clustering 1, Kmeans 1.
 - Sep 11. [[file:homeworks/03-gaussian-mixture-models.org][Homework week 3]]. Gaussian mixture models
   - [[file:slides/03-gaussian-mixtures.pdf][Slides]], ESL-14.3.7, MLAPP-11.4.2. [[file:mclust-models.jpg][mclust model names figure]].
-  - Quiz: mixture 1.
 - Sep 18, [[file:homeworks/04-hierarchical-clustering.org][Homework week 4]]: Hierarchical Clustering
   - [[file:slides/04-hierarhical-clustering.pdf][Slides]], ESL-14.3.12, MLAPP-25.5.1.
-  - Quizzes Hierarhical 1-3.
 - Sep 25, [[file:homeworks/05-binary-segmentation.org][Homework week 5]]: Binary segmentation
   - [[file:slides/05-binary-segmentation.pdf][Slides]], Intro to changepoint detection [[https://arxiv.org/pdf/1801.00718.pdf][Truong et al]]. sections
     1-2. Binary segmentation. Section 5.2.2. Estimating the number of
     changes. section 6.
-  - Quizzes changepoint 1, binary segmentation 1. 
 - Oct 2, [[file:homeworks/06-dynamic-programming.org][Homework week 6]]: Optimal segmentation via dynamic programming.
   - [[file:slides/06-optimal-segmentation.pdf][Slides]], [[https://arxiv.org/pdf/1801.00718.pdf][Truong et al]] sections 4.1.1 (Models and Cost functions,
     Parametric Models, Maximum likelihood estimation), 5.1. (Optimal
     detection).
-  - Quizzes changepoint 2, optimal segmentation 1-2.
 - Oct 9, [[file:homeworks/07-hidden-markov-models.org][Homework week 7]]: Hidden Markov Models
   - [[file:slides/07-hidden-markov-models.pdf][Slides]], [[https://cloud.r-project.org/web/packages/depmixS4/vignettes/depmixS4.pdf][depmixS4 vignette]] section 2. Markov Models, MLAPP-17.2. Hidden
     Markov Models, MLAPP-17.3-5. Learning for HMMs, MLAPP-17.5.
-  - Quizzes HMM 1-3.
 - Oct 16, week 8: review and exam.
   - [[file:exams/01-practice.org][Review]] and exam, [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 1 due]].
   - [[file:exams/02-practice.org][Review DATE TODO and exam DATE TODO]]. [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
 - Oct 23, [[file:homeworks/09-clustering-model-selection.org][Homework week 9]]: Clustering model selection
   - [[file:slides/09-clustering-model-selection.pdf][Slides]], Estimating the number of clusters, ESL-14.3.11. Model
     selection for latent variable models, MLAPP-11.5.
-  - Quizzes model selection 1-3.
 - Oct 30, [[file:homeworks/10-segmentation-model-selection.org][Homework week 10]]: Segmentation model selection
   - [[file:slides/10-segmentation-model-selection.pdf][Slides]], for AIC/BIC read MLAPP-5.3.2.4 (BIC approximation to log
     marginal likelihood) and ESL-7.5 (Estimates of
     In-Sample Prediction Error) and ESL-7.7 (The Bayesian Approach and
     BIC). [[http://ml.nau.edu/viz/2021-10-21-curveAlignment/][Changepoint ROC curve interactive data viz 1]], [[http://ml.nau.edu/viz/2021-10-21-neuroblastomaProcessed-complex/][data viz 2]]
-  - Quizzes HMM 4-5, model selection 4.
 - Nov 6, week 11, Veterans day holiday Nov 10. [[file:homeworks/11-principal-components.org][Homework week 11]]: Principal Components Analysis
   - [[file:slides/11-principal-components.pdf][Slides]], Principal Components Analysis, ESL-14.5. MLAPP-12.2.
-  - Quizzes PCA 1-3.
 - Nov 13.  [[file:homeworks/12-auto-encoders.org][Homework week 12]]: Auto-encoders
   - [[file:slides/12-auto-encoders.pdf][Slides]], [[file:homeworks/13-auto-encoders-torch.R][torch+luz coding demo]], Deep generative models, MLAPP-28.2
     to 28.3. Deep auto-encoders, MLAPP-28.3.2. MLAPP-28.4.2 to 28.4.3.
-  - Quizzes Autoencoders 1-3.
 - Nov 20, week 13, no homework but please start working on your R
   package coding project. 
   - class cancelled on Monday and Friday, Thanksgiving holiday Nov 23-24.
