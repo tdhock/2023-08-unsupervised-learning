@@ -47,3 +47,12 @@ https://github.com/tdhock/dotfiles.
 
 See [[https://ess.r-project.org/][official ESS documentation]] for more info about how to use R in
 emacs, and watch [[https://www.youtube.com/playlist?list=PLwc48KSH3D1Onsed66FPLywMSIQmAhUYJ][my emacs video tutorials]].
+
+Use code below to insert assignment arrow using single key press (;).
+
+#+begin_src elisp
+  (with-eval-after-load "ess-r-mode" 
+    (define-key ess-r-mode-map ";" #'ess-insert-assign)
+    (define-key inferior-ess-r-mode-map ";" #'ess-insert-assign)
+    )
+#+end_src
