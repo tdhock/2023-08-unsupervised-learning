@@ -57,7 +57,7 @@ the clustering trees. How similar are the two cluster trees?
 Please submit your code along with your figures/plots/graphs and
 commentary in a single PDF.
 
-** For CS599 graduate students only:
+** Coding hierarchical clustering from scratch
 
 Code the Hierarchical clustering algorithm from scratch based on the
 pseudo-code in the textbooks. Start by computing the pairwise distance
