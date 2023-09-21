@@ -44,8 +44,7 @@ Comparing hierarchical clustering with kmeans
       (ARI) with respect to the true class/digit labels (1 means perfect
       clustering and values near 0 mean random clusters).
 
-5. Code the Hierarchical clustering algorithm from scratch based on the pseudo-code in the textbooks. Start by computing the pairwise distance
-matrix, then recursively join observations/groups until you have the desired number of clusters.
+5. Code the Hierarchical clustering algorithm from scratch based on the pseudo-code in the textbooks. Start by computing the pairwise distance matrix, then recursively join observations/groups until you have the desired number of clusters.
 - Write a function HCLUST(data.matrix, K) which computes the
   clustering. For simplicity, do NOT compute the entire tree; instead
   your function should return an integer vector of cluster IDs, same
