@@ -27,6 +27,8 @@ models for sequence data, and compare the speed of two R packages.
    significant changes) or false negatives (no change predicted where
    the data has a significant change)?
 
+4. Based on the pseudocode in the article, and equations in the slides, code binary segmentation for the square loss. Your R function should be named BINSEG and input (1) a vector of numeric data, and (2) the maximum number of segments. During each iteration you should consider each possible split, compute the amount that the loss would decrease for each split, then select the split which decreases the loss the most. It should output a vector of square loss values, from 1 to the maximum number of segments (for simplicity, do not output the changepoints). Run your algorithm on the same data set as in problems 1-3. Make another plot of loss versus model size, using color for different implementations (e.g. binsegRcpp=red, yours=black). Does your code compute the same loss values as binsegRcpp?
+
 20 Extra credit points: Do a speed comparison of two different
 implementations of binary segmentation. Use
 changepoint::cpt.mean(logratio_vector, Q=max.changes, method="BinSeg",
@@ -40,17 +42,3 @@ well. Make a ggplot with log-log axes that compares the computation
 times of the two algorithms. (x=data size, y=seconds, color=package)
 Are there any significant speed differences?
 
-** Coding binary segmentation from scratch
-
-Based on the pseudocode in the article, and equations in the slides,
-code binary segmentation for the square loss. Your R function should
-be named BINSEG and input (1) a vector of numeric data, and (2) the
-maximum number of segments. During each iteration you should consider
-each possible split, compute the amount that the loss would decrease
-for each split, then select the split which decreases the loss the
-most. It should output a vector of square loss values, from 1 to the
-maximum number of segments (for simplicity, do not output the
-changepoints). Run your algorithm on the same data set as in problems
-1-3. Make another plot of loss versus model size, using color for
-different implementations (e.g. binsegRcpp=red, yours=black). Does
-your code compute the same loss values as binsegRcpp?
