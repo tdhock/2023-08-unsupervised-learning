@@ -32,7 +32,7 @@ states. The error message should say something like "optimization not
 converging, which suggests that the model is not identifiable, try a
 smaller value for nstates, or try another random seed."
 
-*** CS599 Graduate students only
+*** Comparing log likelihood of two models
 
 The goal is to systematically compare the negative log likelihood of
 the two packages (changepoint and depmixS4).
