@@ -40,7 +40,7 @@ well. Make a ggplot with log-log axes that compares the computation
 times of the two algorithms. (x=data size, y=seconds, color=package)
 Are there any significant speed differences?
 
-** CS599 graduate students only
+** Coding binary segmentation from scratch
 
 Based on the pseudocode in the article, and equations in the slides,
 code binary segmentation for the square loss. Your R function should
