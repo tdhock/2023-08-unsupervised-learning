@@ -44,6 +44,21 @@ Comparing hierarchical clustering with kmeans
       (ARI) with respect to the true class/digit labels (1 means perfect
       clustering and values near 0 mean random clusters).
 
+5. Code the Hierarchical clustering algorithm from scratch based on the pseudo-code in the textbooks. Start by computing the pairwise distance
+matrix, then recursively join observations/groups until you have the desired number of clusters.
+- Write a function HCLUST(data.matrix, K) which computes the
+  clustering. For simplicity, do NOT compute the entire tree; instead
+  your function should return an integer vector of cluster IDs, same
+  as stats::cutree (size=number of observations, entries=from 1 to K).
+- use single linkage method (distance from a group to an observation
+  is the minimum distance over all points in that group).
+- evaluate the accuracy of your result by running your algorithm
+  alongside hclust/cutree on the iris data. Compute/print a
+  contingency/count table, e.g. base::table(ids.from.hclust.cutree,
+  ids.from.your.HCLUST)... does your algorithm compute the same
+  clustering?
+
+
 Extra credit (10 points): add kmeans as a third line on the ARI plot
 in problem 4. Is it more or less accurate than hierarchical
 clustering?
@@ -56,21 +71,3 @@ the clustering trees. How similar are the two cluster trees?
 
 Please submit your code along with your figures/plots/graphs and
 commentary in a single PDF.
-
-** Coding hierarchical clustering from scratch
-
-Code the Hierarchical clustering algorithm from scratch based on the
-pseudo-code in the textbooks. Start by computing the pairwise distance
-matrix, then recursively join observations/groups until you have the
-desired number of clusters.
-- Write a function HCLUST(data.matrix, K) which computes the
-  clustering. For simplicity, do NOT compute the entire tree; instead
-  your function should return an integer vector of cluster IDs, same
-  as stats::cutree (size=number of observations, entries=from 1 to K).
-- use single linkage method (distance from a group to an observation
-  is the minimum distance over all points in that group).
-- evaluate the accuracy of your result by running your algorithm
-  alongside hclust/cutree on the iris data. Compute/print a
-  contingency/count table, e.g. base::table(ids.from.hclust.cutree,
-  ids.from.your.HCLUST)... does your algorithm compute the same
-  clustering?
