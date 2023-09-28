@@ -507,14 +507,15 @@ $y_1=z_1=0, y_t=\sum_{i=1}^{t-1} x_i, z_t=\sum_{i=1}^{t-1} x_i^2$, for
 all $t\in\{2,\dots,n+1\}$.
 
 Assume there is some set $\mathcal S$ of segments that could be split,
-each $(j,e)\in\mathcal S$ represented by a segment start $j$ and end
+each $(j,e)\in\mathcal S$ is a segment start $j$ and end
 $e$ (both in $1,\dots,n$).
 
-Then the next segment to split, and best split point, are the solution
-to the following problem,
+Then the next segment to split $(j,e)$, and best split point $t$, are defined by
+the best loss decrease,
 
 $$ \min_{(j,e)\in\mathcal S} \min_{t\in\{j,\dots,e\}} 
-L_{j,t} + L_{t+1,e} - L_{j,e}. $$
+\underbrace{L_{j,t} + L_{t+1,e}}_{\text{loss after split}} - 
+\underbrace{L_{j,e}}_{\text{loss before split}}. $$
 
 Use the cumsum trick to compute loss in constant time,
 $$\sum_{i=j}^t x_i = \sum_{i=1}^t x_i - \sum_{i=1}^{j-1} x_i = y_{t+1} - y_j.$$
