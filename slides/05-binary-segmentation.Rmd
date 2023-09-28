@@ -117,10 +117,11 @@ gg
 # Simplest model, 1 segment, 0 changepoints
 
 ```{r}
-bs.models <- binsegRcpp::binseg_normal(one.dt[["logratio"]])
+bs.list <- binsegRcpp::binseg_normal(one.dt[["logratio"]])
+bs.models <- bs.list$splits
 model.color <- "blue"
 plotK <- function(k){
-  k.segs <- coef(bs.models, as.integer(k))
+  k.segs <- coef(bs.list, as.integer(k))
   gg+
     geom_vline(aes(
       xintercept=start-0.5),
@@ -499,6 +500,28 @@ ggplot()+
 
 ---
 
+# Learning algorithm, implementation details
+
+First compute the vectors of cumulative sums of data and squares,
+$y_1=z_1=0, y_t=\sum_{i=1}^{t-1} x_i, z_t=\sum_{i=1}^{t-1} x_i^2$, for
+all $t\in\{2,\dots,n+1\}$.
+
+Assume there is some set $\mathcal S$ of segments that could be split,
+each $(j,e)\in\mathcal S$ represented by a segment start $j$ and end
+$e$ (both in $1,\dots,n$).
+
+Then the next segment to split, and best split point, are the solution
+to the following problem,
+
+$$ \min_{(j,e)\in\mathcal S} \min_{t\in\{j,\dots,e\}} 
+L_{j,t} + L_{t+1,e} - L_{j,e}. $$
+
+Use the cumsum trick to compute loss in constant time,
+$$\sum_{i=j}^t x_i = \sum_{i=1}^t x_i - \sum_{i=1}^{j-1} x_i = y_{t+1} - y_j.$$
+$$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)/(t-j+1).$$
+
+---
+
 # Visualization of computations at each iteration
 
 ```{r}
@@ -791,7 +814,7 @@ for(data.name in names(data.list)){
   print(data.name)
   fit <- binsegRcpp::binseg_normal(bad.data.vec)
   s <- function(x)ifelse(x==1, 0, 1)
-  new.segs <- fit[, s(after.size)+s(before.size)]
+  new.segs <- fit$splits[, s(after.size)+s(before.size)]
   map.size.after.erase <- cumsum(c(1, new.segs[-1]-1))
   ## print(data.name)
   ## print(map.size.after.erase)
@@ -810,7 +833,7 @@ for(data.name in names(data.list)){
   fit.dt.list[[data.name]] <- data.table(
     data.name,
     data=bad.data.vec,
-    fit)
+    fit$splits)
 }
 
 (fit.dt <- do.call(rbind, fit.dt.list))
