@@ -4,7 +4,7 @@ author: "Toby Dylan Hocking"
 output:
   beamer_presentation:
     includes:
-      in_header: 05-preamble.tex    
+      in_header: 05-preamble.tex
 ---
 
 ```{r opts, echo=FALSE}
@@ -12,6 +12,10 @@ knitr::opts_chunk$set(
   echo=FALSE, results=FALSE,
   fig.width=10,
   fig.height=6)
+library(ggplot2)
+my.theme <- theme_grey()+
+  theme(text=element_text(size=14))
+theme_set(my.theme)
 ```
 
 # Motivation for changepoint detection in time series data
@@ -71,7 +75,6 @@ one.dt
 - Where are the abrupt changes in the data sequence?
 
 ```{r results=TRUE}
-library(ggplot2)
 ggplot()+
   scale_y_continuous(
     "logratio (noisy copy number measurement)")+
@@ -120,8 +123,8 @@ gg
 # Simplest model, 1 segment, 0 changepoints
 
 ```{r}
-bs.list <- binsegRcpp::binseg_normal(one.dt[["logratio"]])
-bs.models <- bs.list$splits
+bs.list <- suppressWarnings(binsegRcpp::binseg_normal(one.dt[["logratio"]]))
+bs.models <- bs.list[["splits"]]
 model.color <- "blue"
 plotK <- function(k){
   k.segs <- coef(bs.list, as.integer(k))
@@ -254,7 +257,10 @@ ggplot()+
 - If $s = \sum_{i=1}^n x_i$ is the sum over $n$ data points, then the
   mean is $s/n$ and the square loss (from 1 to $n$) is
 $$L_{1,n} = \sum_{i=1}^n (x_i - s/n)^2 = \sum_{i=1}^n [x_i^2] - 2(s/n)s + n(s/n)^2 $$
-- Use cumulative sum to compute square loss from 1 to $t$, $L_{1,t}$, and from $t+1$ to $n$, $L_{t+1,n}$, and minimize over all changepoints $t$,
+- Given cumulative sums, and a split point $t$, we can compute square
+  loss from 1 to $t$, $L_{1,t}$, and from $t+1$ to $n$, $L_{t+1,n}$,
+  in constant $O(1)$ time.
+- We can minimize over all changepoints $t$ in linear $O(n)$ time,
 $$\min_{t\in\{1,\dots,n-1\}} L_{1,t} + L_{t+1,n}$$
 
 ---
@@ -470,7 +476,7 @@ plot2(200)
 
 ---
 
-# Loss computation
+# Efficient loss computation
 
 - Minimization can be performed by choosing the split with loss (black
   point) which maximizes the decrease in loss with respect to previous
@@ -518,40 +524,51 @@ the best loss decrease,
 
 $$
 \max_{(j,e)\in\mathcal S}
-\underbrace{L_{j,e}}_{\text{loss before split}}-
+\alert{\underbrace{L_{j,e}}_{\text{loss before split}}}-
 \min_{t\in\{j,\dots,e-1\}} 
 \underbrace{L_{j,t} + L_{t+1,e}}_{\text{loss after split}} 
 $$
 
 Use the cumsum trick to compute loss in constant time,
-$$\sum_{i=j}^t x_i = \sum_{i=1}^t x_i - \sum_{i=1}^{j-1} x_i = y_{t+1} - y_j.$$
+$$\sum_{i=j}^t x_i = y_{t+1} - y_j.$$
 $$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)^2/(t-j+1).$$
 
 ---
 
 # Learning algorithm, recursion/pseudo-code
 
-Let $D_{j,e}(t)=L_{j,t}+L_{t+1,n}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and 
-let $f(j,e)=\min_{t\in j,\dots,e\} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
+Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,n}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and 
+let $f(j,e)=\min,\argmin_{t\in j,\dots,e} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
 
 Initialization. Let $\mathcal L_1=L_{1,n}$ be the loss with one segment, 
-let $d_0,t_0=f(1,n)$ be the first loss difference/split,
-and let $\mathcal S_1=\{(1,n,d_0,t_0)\}$ be the initial segments to split.
+let $d_1,t_1=f(1,n)$ be the first loss difference/split,
+and let $\mathcal S_1=\{(1,n,d_1,t_1)\}$ be the initial segment to split.
 
-Recursion. For all $k\in\{2,\dots,n\}$ the best segment to split is
-$j^*_k, e^*_k, d^*_k, t^*_k = \argmin_{(j,e,d,t)\in\mathcal S_{k-1} d$,
-the loss is $\mathcal L_k=\mathcal L_{k-1} +d^*_k$, 
-new candidates for loss difference/splits are 
-$\underline d_k,\underline t_k=f(j^*_k,t^*_k)$ and 
-$\overline d_k,\overline t_k=f(t^*_k+1,e^*_k)$, 
-and the set of segments to split is 
-$\mathcal S_k=
-[\mathcal S_{k-1}\setminus (j^*_k, e^*_k, d^*_k, t^*_k)]
-\cup\{
+Recursion. For all $k\in\{2,\dots,K\}$: ($K\leq n$ is max segments)
+
+* $j^*_k, e^*_k, d^*_k, t^*_k = \argmin_{(j,e,d,t)\in\mathcal S_{k-1}} d$ (best segment to split)
+* $\mathcal L_k=\mathcal L_{k-1} +d^*_k$, (loss)
+* $\underline d_k,\underline t_k=f(j^*_k,t^*_k)$ and $\overline d_k,\overline t_k=f(t^*_k+1,e^*_k)$ (new splits)
+* $\mathcal N_k=\{
 (j^*_k, t^*_k, \underline d_k, \underline t_k),
 (t^*_k+1,e^*_k,\overline d_k,\overline t_k)
-\}$.
+\}$ (new segments)
+* $\mathcal V_k=\{(j,e,d,t)\in\mathcal N_k\mid e-j\geq 1\}$ (splittable segments)
+* $\mathcal S_k=
+[\mathcal S_{k-1}\setminus (j^*_k, e^*_k, d^*_k, t^*_k)]
+\cup\mathcal V_k$ (segments to search)
 
+---
+
+# Modification for min segment length
+
+Sometimes there is prior knowledge that there should be no segments
+with fewer data points than $\ell\in\{1,2,\dots\}$, and in that case
+there is a simple modification:
+
+* $f(j,e)=\min,\argmin_{t\in\{j+\ell-1,\dots,e-\ell\}} D_{j,e}(t)$ (best split)
+* $\mathcal V_k=\{(j,e,d,t)\in\mathcal N_k\mid e-j+1\geq 2\ell\}
+\}$ (splittable segments)
 
 
 ---
@@ -809,7 +826,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$ \\
 # Real data time complexity analysis
 
 ```{r, fig.height=4}
-N.exp <- 3
+N.exp <- 6
 N.data <- 2^N.exp
 N.exp.seq <- 1:N.exp
 (size.after.split <- as.integer(N.data/rep(2^N.exp.seq, 2^(N.exp.seq-1))))
@@ -846,7 +863,7 @@ segs.dt.list <- list()
 for(data.name in names(data.list)){
   bad.data.vec <- data.list[[data.name]]
   print(data.name)
-  fit <- binsegRcpp::binseg_normal(bad.data.vec)
+  fit <- suppressWarnings(binsegRcpp::binseg_normal(bad.data.vec))
   s <- function(x)ifelse(x==1, 0, 1)
   new.segs <- fit$splits[, s(after.size)+s(before.size)]
   map.size.after.erase <- cumsum(c(1, new.segs[-1]-1))
