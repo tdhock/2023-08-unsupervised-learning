@@ -346,20 +346,25 @@ grid.density.list <- list()
 data.lik.list <- list()
 for(n.clusters in 2:4){
   fit.list <- mclust::Mclust(data.mat, n.clusters, ari.type, verbose=FALSE)
-  log.lik <- sum(mclust::dens(
-    fit.list$modelName, data.mat, log=TRUE, parameters=fit.list$parameters))
+  get.dens <- function(data, log=FALSE){
+    mclust::dens(
+      data=data,
+      modelName=fit.list[["modelName"]],
+      log=log,
+      parameters=fit.list[["parameters"]])
+  }
+  log.lik.vec <- get.dens(data.mat, log=TRUE)
+  log.lik <- sum(log.lik.vec)
   data.lik.list[[paste(n.clusters)]] <- data.table(
     n.clusters, log.lik)
   data.density.list[[paste(n.clusters)]] <- data.table(
     n.clusters,
     data.mat,
-    density=mclust::dens(
-      fit.list$modelName, data.mat, parameters=fit.list$parameters))
+    density=get.dens(data.mat))
   grid.density.list[[paste(n.clusters)]] <- data.table(
     n.clusters,
     grid.mat,
-    density=mclust::dens(
-      fit.list$modelName, grid.mat, parameters=fit.list$parameters))
+    density=get.dens(grid.mat))
 }
 data.density <- do.call(rbind, data.density.list)
 data.lik <- do.call(rbind, data.lik.list)
@@ -489,7 +494,7 @@ for(n.clusters in 2:4)for(seed in 2:3){
       get_ellipse_points(cluster.mean.vec, cluster.cov.mat))
   }
   dens.mat <- with(
-    fit.list, cdens(modelName, data.mat, parameters=parameters))
+    fit.list, cdens(data=data.mat, modelName=modelName, parameters=parameters))
   gmm.seeds.list[[paste(n.clusters, seed)]] <- data.table(
     n.clusters,
     seed,
@@ -535,9 +540,9 @@ gg <- ggplot()+
 
 # EM algo update rules
 
-Let $f(x, \mu, S)$ be the (multivariate) normal density for a feature
-vector $x\in\mathbb R^p$, a mean vector $\mu\in\mathbb R^p$, and a
-covariance matrix $S\in\mathbb R^{p\times p}$.
+Let $f(x, \mu_k, S_k)$ be the (multivariate) normal density for a feature
+vector $x\in\mathbb R^p$, a mean vector $\mu_k\in\mathbb R^p$, and a
+covariance matrix $S_k\in\mathbb R^{p\times p}$.
 
 In the E step we update the probability matrix,
 $$T_{ik} \gets \frac{\pi_k f(x_i, \mu_k, S_k)}{\sum_{k'=1}^K \pi_{k'} f(x_i, \mu_{k'}, S_{k'})}$$.
@@ -574,7 +579,7 @@ $$\max_T \log L(x, \theta, T)$$
 
 To avoid numerical issues in EM algorithm we need to
 
-- Use the log density with max probability trick, to avoid non-finite
+- Store log density, update via log-sum-exp trick, to avoid non-finite
   probability values in E step.
   
 $$T_{ik} \gets \frac{\pi_k f(x_i, \mu_k, S_k)}{\sum_{k'=1}^K \pi_{k'} f(x_i, \mu_{k'}, S_{k'})}$$
