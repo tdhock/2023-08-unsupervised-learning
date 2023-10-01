@@ -538,12 +538,12 @@ $$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)^2/(t-j+1).$$
 # Learning algorithm, recursion/pseudo-code
 
 Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,n}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and 
-let $f(j,e)=\min,\argmin_{t\in \{j,\dots,e\}} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
+let $f(j,e)=\min,\argmin_{t\in \{j,\dots,e-1\}} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
 
 Initialization. Let $\mathcal L_1=L_{1,n}$ be the loss with one segment, 
 and let $\mathcal S_1=\{(1,n,f(1,n))\}$ be the initial segment to split.
 
-Recursion. For all $k\in\{2,\dots,K\}$: ($K\leq n$ is max segments)
+Recursion. For all $k\in\{2,\dots,K\}$: (max segments $K\leq n$)
 
 * $j^*_k, e^*_k, d^*_k, t^*_k = \argmin_{(j,e,d,t)\in\mathcal S_{k-1}} d$ (best segment to split)
 * $\mathcal L_k=\mathcal L_{k-1} +d^*_k$, (loss)
@@ -551,7 +551,7 @@ Recursion. For all $k\in\{2,\dots,K\}$: ($K\leq n$ is max segments)
 (j^*_k, t^*_k),
 (t^*_k+1,e^*_k)
 \}$ (new segments)
-* $\mathcal V_k=\{(j,e,f(j,e))\in\mathcal N_k\mid e-j\geq 1\}$ (splittable segments)
+* $\mathcal V_k=\{(j,e,f(j,e))\mid (j,e)\in\mathcal N_k,\, j<e\}$ (splittable segments)
 * $\mathcal S_k=
 [\mathcal S_{k-1}\setminus (j^*_k, e^*_k, d^*_k, t^*_k)]
 \cup\mathcal V_k$ (segments to search)
@@ -564,8 +564,11 @@ Sometimes there is prior knowledge that there should be no segments
 with fewer data points than $\ell\in\{1,2,\dots\}$, and in that case
 there is a simple modification:
 
-* $f(j,e)=\min,\argmin_{t\in\{j+\ell-1,\dots,e-\ell\}} D_{j,e}(t)$ (best split)
-* $\mathcal V_k=\{(j,e,f(j,e))\in\mathcal N_k\mid e-j+1\geq 2\ell\}
+* $f(j,e)=\min,\argmin_{t\in\{
+\alert{j+\ell-1,\dots,e-\ell}
+\}} D_{j,e}(t)$ (best split)
+* $\mathcal V_k=\{(j,e,f(j,e))\mid (j,e)\in\mathcal N_k,\, 
+\alert{e-j+1\geq 2\ell}\}
 \}$ (splittable segments)
 
 ---
