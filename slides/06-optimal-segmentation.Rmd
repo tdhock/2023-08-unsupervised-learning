@@ -81,7 +81,7 @@ ggplot()+
 get_segs_loss <- function(pid, chrom, max.segments=6){
   one <- nb.dt[J(pid, chrom)]
   logratio <- one[["logratio"]]
-  binseg <- binsegRcpp::binseg_normal(logratio, max.segments)
+  binseg <- suppressWarnings(binsegRcpp::binseg_normal(logratio, max.segments))
   opt <- jointseg::Fpsn(logratio, max.segments)
   cum.end <- cumsum(logratio)
   cum.start <- c(0,cum.end)
@@ -95,7 +95,7 @@ get_segs_loss <- function(pid, chrom, max.segments=6){
   a <- function(x)factor(x, c("optimal", "binseg"))
   loss.dt <- rbind(
     ldt("optimal", opt$J.est),
-    ldt("binseg", binseg$loss))
+    ldt("binseg", binseg$splits$loss))
   segs.dt <- rbind(
     data.table(
       algorithm=a("optimal"),
@@ -104,7 +104,9 @@ get_segs_loss <- function(pid, chrom, max.segments=6){
       end=as.integer(end),
       mean=as.numeric(seg.sum/n.data)
     )[!is.na(mean)],
-    data.table(algorithm=a("binseg"), coef(binseg)))
+    data.table(
+      algorithm=a("binseg"),
+      coef(binseg)[, .(segments, start, end, mean)]))
   one[, data.i := .I]
   change.dt <- segs.dt[1 < start]
   list(segment=segs.dt, change=change.dt, loss=loss.dt, data=one)
@@ -143,7 +145,7 @@ gg <- ggplot()+
   scale_y_continuous(
     "logratio (approximate DNA copy number)")+
   facet_grid(segments ~ ., labeller=label_both)
-gg
+suppressWarnings(gg)
 ```
 
 ---
@@ -151,7 +153,7 @@ gg
 # Zoom to start
 
 ```{r fig.height=8}
-gg+coord_cartesian(xlim=c(0, 300))
+suppressWarnings(gg+coord_cartesian(xlim=c(0, 300)))
 ```
 
 ---
@@ -159,7 +161,7 @@ gg+coord_cartesian(xlim=c(0, 300))
 # Zoom to center
 
 ```{r fig.height=8}
-gg+coord_cartesian(xlim=c(2100, 2300))
+suppressWarnings(gg+coord_cartesian(xlim=c(2100, 2300)))
 ```
 
 ---
@@ -167,7 +169,7 @@ gg+coord_cartesian(xlim=c(2100, 2300))
 # Zoom to end
 
 ```{r fig.height=8}
-gg+coord_cartesian(xlim=c(3700, 3800))
+suppressWarnings(gg+coord_cartesian(xlim=c(3700, 3800)))
 ```
 
 ---
@@ -331,15 +333,15 @@ gg+coord_cartesian(xlim=c(50, 100))
 
 # Dynamic programming for optimal changepoint detection
 
-- We have $n$ data $z_1, \dots, z_n$.
+- We have $n$ data $x_1, \dots, x_n$.
 - Fix the number of segments $S\in\{1, 2, \dots, n\}$.
 - Optimization variables: $S-1$ changepoints
     $t_1 < \cdots < t_{S-1}$ and $S$ segment means
     $u_1,\dots,u_S\in\mathbb R$ ($t_0=0$, $t_S=n$).
 - Statistical model: for every segment $s\in\{1,\dots,S\}$,
-    $z_i \stackrel{\text{iid}}{\sim} N(u_s, \sigma^2)$ for every
+    $x_i \stackrel{\text{iid}}{\sim} N(u_s, \sigma^2)$ for every
     data point $i\in(t_{s-1},t_s]$ implies square loss function
-    $\ell(u_s, z_i)=(u_s-z_i)^2$ to minimize.
+    $\ell(u_s, x_i)=(u_s-x_i)^2$ to minimize.
 
 ```{r dev='tikz', fig.height=4}
 max.segments <- 4
@@ -420,18 +422,18 @@ The best loss for $S$ segments and $n$ data is
 \\
    0=t_0<t_1<\cdots<t_{S-1}<t_S=n
   }} 
-    \sum_{s=1}^S\  \sum_{i=t_{s-1}+1}^{t_s} \ell( u_s,  z_i) 
+    \sum_{s=1}^S\  \sum_{i=t_{s-1}+1}^{t_s} \ell( u_s,  x_i) 
 \\
 &=&\min_{t_{S-1}}\underbrace{
 \min_{\substack{
 u_1,\dots,u_{S-1}\\
 t_1<\cdots<t_{S-2}
 }}
-  \sum_{s=1}^{S-1}\  \sum_{i=t_{s-1}+1}^{t_s} \ell( u_s,  z_i)
+  \sum_{s=1}^{S-1}\  \sum_{i=t_{s-1}+1}^{t_s} \ell( u_s,  x_i)
 }_{
 \mathcal L_{S-1, t_{S-1}}
 } +
-\underbrace{\min_{u_S} \sum_{i=t_{S-1}+1}^{t_S=n} \ell( u_S,  z_i)}_{
+\underbrace{\min_{u_S} \sum_{i=t_{S-1}+1}^{t_S=n} \ell( u_S,  x_i)}_{
 c_{(t_{S-1}, t_S=n]}
 }
 %      \text{subject to \hskip 0.75cm} &\ \ \alert<3>{u_{s-1} \leq u_s\ \forall s\in\{2,4,\dots\},}  \nonumber\\
@@ -720,25 +722,25 @@ loss1(nrow(one.dt))
 
 The best square loss up to $t$ is
 $$
-c_{(0, t]} = \min_u \sum_{i=1}^t (z_i-u)^2 =
-\sum_{i=1}^t z_i^2 - \min_u 2\hat u\sum_{i=1}^t z_i + t\hat u^2.
+c_{(0, t]} = \min_u \sum_{i=1}^t (x_i-u)^2 =
+\sum_{i=1}^t x_i^2 - 2\hat u_t\sum_{i=1}^t x_i + t\hat u_t^2.
 $$
 
-We can use cumulative sum to compute $S_t$ for all $t$ in linear
+We can use cumulative sum to compute $y_t$ for all $t$ in linear
 $O(t)$ time,
-$S_t = \sum_{i=1}^t z_i.$
+$y_t = \sum_{i=1}^t x_i.$
 
 And best means up to $t$,
-$\hat u_t = S_t / t.$
+$\hat u_t = y_t / t.$
 
 And cumulative sum of squares,
-$Q_t = \sum_{i=1}^t z_i^2.$
+$z_t = \sum_{i=1}^t x_i^2.$
 
-And best loss up to $t$,
+And best loss up to $t$, $c_{(0,t]}=$
 $$ 
-\sum_{i=1}^t z_i^2 - 2\hat u_t\sum_{i=1}^t z_i + t\hat u_t^2 =
-Q_t - 2(S_t/t)(S_t) + t (S_t/t)^2 = 
-Q_t-S_t^2/t.
+\sum_{i=1}^t x_i^2 - 2\hat u_t\sum_{i=1}^t x_i + t\hat u_t^2 =
+z_t - 2(y_t/t)(y_t) + t (y_t/t)^2 = 
+z_t-y_t^2/t.
 $$
 
 ---
@@ -787,6 +789,14 @@ showChoice(234, 2, 41)
 
 ```{r, dev='tikz', results="asis"}
 showChoice(234, 2, 80)
+```
+
+---
+
+# First iteration/changepoint of dynamic programming
+
+```{r, dev='tikz', results="asis"}
+showChoice(234, 2, 113)
 ```
 
 ---
@@ -843,6 +853,69 @@ showChoice(157, 3, 113)
 
 ```{r, dev='tikz', results="asis"}
 showChoice(157, 3, 130)
+```
+
+---
+
+# Second iteration/changepoint of dynamic programming
+
+```{r, dev='tikz', results="asis"}
+showChoice(234, 3, 50)
+```
+
+---
+
+# Second iteration/changepoint of dynamic programming
+
+```{r, dev='tikz', results="asis"}
+showChoice(234, 3, 100)
+```
+
+---
+
+# Second iteration/changepoint of dynamic programming
+
+```{r, dev='tikz', results="asis"}
+showChoice(234, 3, 157)
+```
+
+---
+
+# Comparison with binary segmentation
+
+```{r fig.height=8} 
+models <- get_segs_loss("4", "2")
+gg <- ggplot()+
+  theme.mid+
+  geom_point(aes(
+    data.i, logratio),
+    shape=1,
+    data=models[["data"]])+
+  geom_segment(aes(
+    start-0.5, mean,
+    color=algorithm,
+    size=algorithm,
+    xend=end+0.5, yend=mean),
+    data=models[["segment"]])+
+  geom_vline(aes(
+    xintercept=start-0.5,
+    size=algorithm,
+    color=algorithm),
+    data=models[["change"]])+
+  geom_text(aes(
+    200, Inf,
+    color=algorithm,
+    hjust=ifelse(algorithm=="binseg", 0, 1),
+    label=sprintf("%s loss=%.2f", algorithm, loss)),
+    vjust=1.1,
+    data=models[["loss"]])+
+  scale_size_manual(values=algo.sizes)+
+  scale_x_continuous(
+    "Position/index in data sequence")+
+  scale_y_continuous(
+    "logratio (approximate DNA copy number)")+
+  facet_grid(segments ~ ., labeller=label_both)
+gg
 ```
 
 ---
@@ -914,7 +987,7 @@ $$
 \min_{m_1,\dots,m_n\in\mathbb R}
 \underbrace{
 \sum_{i=1}^n
-\ell(m_i, z_i)
+\ell(m_i, x_i)
 }_{
 \text{loss}
 }
