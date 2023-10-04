@@ -1,7 +1,6 @@
 ---
 title: "Optimal segmentation"
 author: "Toby Dylan Hocking"
-
 output:
     beamer_presentation:
         includes:
@@ -29,7 +28,10 @@ type.colors.latex <- sprintf(
   names(type.colors),
   sub("#", "", type.colors.hex))
 ##\definecolor{Mycolor2}{HTML}{00F9DE} https://www.overleaf.com/learn/latex/Using_colours_in_LaTeX
-cat(type.colors.latex, file="08-optimal-segmentation-colors.tex", sep="\n")
+cat(type.colors.latex, "
+\\usepackage{amsmath}
+\\DeclareMathOperator*{\\argmin}{arg\\, min}
+", file="08-optimal-segmentation-colors.tex", sep="\n")
 ## https://tex.stackexchange.com/questions/171711/how-to-include-latex-package-in-r-markdown
 ```
 
@@ -416,6 +418,7 @@ ggplot()+
 
 The best loss for $S$ segments and $n$ data is
 ```{=latex}
+\vspace{-1cm}
 \begin{eqnarray*}
   \mathcal L_{S,n} &=& \min_{\substack{
   \mathbf u\in\mathbb R^{S}
@@ -442,11 +445,13 @@ c_{(t_{S-1}, t_S=n]}
 ```
 
 - Hard optimization problem because of integer-valued changepoint $t_s$
-  variables, naively $O(n^S)$ time.
+  variables, naively $O(n^{S-1})$ time.
 - Auger and Lawrence (1989): $O(Sn^2)$ time classical dynamic
-  programming algorithm (best loss computed recursively).
+  programming algorithm: best loss computed recursively, 
+  for all $s\in\{1,\dots,S\}$ and for all $t\in\{S,\dots,n\}$:
 $$
-\mathcal L_{s,t}=\min_{t'<t} \mathcal L_{s-1,t'} + c_{(t', t]}
+\mathcal T^*_{s,t},\mathcal L_{s,t}=
+\argmin,\min_{t'<t} \mathcal L_{s-1,t'} + c_{(t', t]}
 $$
 
 ```{r, dev='tikz', results="asis"}
@@ -655,8 +660,8 @@ $$
       value,
       color=type,
       label=sprintf(
-        "optimal $t^*=%d$",
-        prev.end)),
+        "$\\mathcal T^*_{%d,%d}=%d$",
+        n.segs, up.to, prev.end)),
       vjust=0.5, hjust=1,
       label.size=0,
       alpha=0.5,
@@ -813,13 +818,13 @@ showChoice(234, 2, 150)
 
 ```{=latex}
 \begin{tabular}{ccccc}
-changes & naive & DP(classic) & DP(pruned) & BinSeg \\
+Segments & naive & DP(classic) & DP(pruned) & BinSeg \\
 \hline
 1 & $O(n)$   & $O(n)$   & $O(n)$--$O(n^2)$ & $O(n)$ \\
-2 & $O(n^2)$ & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
-3 & $O(n^3)$ & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
-4 & $O(n^4)$ & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
-$\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ 
+2 & $O(n)$   & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
+3 & $O(n^2)$ & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
+4 & $O(n^3)$ & $O(n^2)$ & $O(n)$--$O(n^2)$ & $O(\log n)$--$O(n)$\\
+$\vdots$     & $\vdots$ &     $\vdots$    & $\vdots$ 
 \end{tabular}
 ```
 
@@ -949,6 +954,24 @@ showChoice(234, 4, 157)
 ```{r, dev='tikz', results="asis"}
 showChoice(234, 4, 200)
 ```
+
+---
+
+# Decoding
+
+At the same time we compute an entry of the $\mathcal L_{s,t}$ matrix
+(min loss), we must also compute an entry of the $\mathcal T^*_{s,t}$
+matrix (argmin, best last change in $s$ segments up to data point
+$t$).
+
+Then we use backtracking/decoding to find the best change-point
+positions for a given model size. For example in previous slides we
+saw,
+
+* $\mathcal T^*_{4,234} = 157$
+* $\mathcal T^*_{3,157} = 113$
+* $\mathcal T^*_{2,113} = 41$
+* which are the best changepoints for model size 4.
 
 ---
 
