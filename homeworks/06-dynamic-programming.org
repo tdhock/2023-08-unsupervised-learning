@@ -13,12 +13,15 @@ segmentation algorithm.
 2. Run jointseg::Fpsn which is a fast log-linear dynamic programming
    (DP) algorithm on sequenceID "20167.22". It returns a list with
    many elements, and the relevant entries for our homework are J.est
-   (loss values) and t.est (changepoints). Also run
-   binsegRcpp::binseg_normal for comparison. Use a max of 20 segments
-   for both algorithms. Plot y=loss as a function of x=segments using
-   different colors in a single geom_line for different algorithms
-   (e.g., binseg=red, DP=black). Does DP have a lower loss as
-   expected?
+   (loss values) and t.est (changepoints). t.est is a matrix with one
+   row per model size, and one column per segment end position. So for
+   example row 5 of t.est has 5 numbers, each of which is the position
+   of a segment end, when there are 5 segments total (4
+   changepoints). Also run binsegRcpp::binseg_normal for
+   comparison. Use a max of 20 segments for both algorithms. Plot
+   y=loss as a function of x=segments using different colors in a
+   single geom_line for different algorithms (e.g., binseg=red,
+   DP=black). Does DP have a lower loss as expected?
 
 3. For a single model size (number of segments/changepoints), plot the
    data (geom_point), segment means (geom_segment), and changepoints
