@@ -69,8 +69,7 @@ Data visualization with ggplot2
 - [[https://uc-r.github.io/ggplot_intro][One web page UC ggplot intro]],
 - [[https://r4ds.had.co.nz/data-visualisation.html][Data visualization chapter of R for Data Science]].
 
-For CS599 grad students: guides to writing an R package with C/C++
-code.
+For CS599: guides to writing an R package with C/C++ code.
 - [[https://teuder.github.io/rcpp4everyone_en/][Rcpp for Everyone by Masaki E. Tsuda]].
 - [[https://webhome.phy.duke.edu/~rgb/General/c_book/c_book/][The C book by Mike Banahan, Declan Brady and Mark Doran]].
 - [[https://github.com/tdhock/when-c][When and how to write low-level (C/C++) instead of high-level (R/Python) code?]]
@@ -134,8 +133,10 @@ that week, 11:59PM.
   - [[file:slides/07-hidden-markov-models.pdf][Slides]], [[https://cloud.r-project.org/web/packages/depmixS4/vignettes/depmixS4.pdf][depmixS4 vignette]] section 2. Markov Models, MLAPP-17.2. Hidden
     Markov Models, MLAPP-17.3-5. Learning for HMMs, MLAPP-17.5.
 - Oct 16, week 8: review and exam.
-  - [[file:exams/01-practice.org][Review]] and exam, [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 1 due]].
-  - [[file:exams/02-practice.org][Review DATE TODO and exam DATE TODO]]. [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
+  - [[file:exams/01-practice.org][Review questions for clustering]].
+  - [[file:exams/02-practice.org][Review questions for change-point detection]].
+  - Mid-term review Weds 18 Oct, exam Fri 20 Oct.
+  - [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 1 due]].
 - Oct 23, [[file:homeworks/09-clustering-model-selection.org][Homework week 9]]: Clustering model selection
   - [[file:slides/09-clustering-model-selection.pdf][Slides]], Estimating the number of clusters, ESL-14.3.11. Model
     selection for latent variable models, MLAPP-11.5.

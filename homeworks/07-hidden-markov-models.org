@@ -17,6 +17,11 @@ data set and compare them to optimal changepoint models.
    data (for simplicity use x=index instead of position). Make sure to
    show the mean (geom_segment), the standard deviation (geom_rect),
    and the changepoints (geom_vline). How many changepoints are there?
+   Hint: if model is the output of the fit method, then 
+   - model@response contains the emission (mean/sd) parameters
+   - viterbi(model) returns a matrix with optimal state assignments,
+     and probability of each state (columns), for each data point
+     (rows).
 
 4. Run changepoint::cpt.meanvar(method="SegNeigh", penalty="Manual",
    Q=the same number of segments as in the HMM) to compute the

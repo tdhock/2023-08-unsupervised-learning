@@ -29,7 +29,9 @@ segmentation algorithm.
    changepoints) Hint: you may need to zoom in to show details around
    the changepoints using xlim(start.pos, end.pos)
 
-4. code the dynamic programming algorithm from scratch in an R function DYNPROG, using the pseudo-code in the article as reference. 
+4. code the dynamic programming algorithm from scratch in an R
+   function DYNPROG, using the pseudo-code in the article/slides as
+   reference.
 
 - Your function should input a vector of numeric data, and a maximum
   number of segments parameter (positive integer). It should begin by
