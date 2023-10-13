@@ -135,7 +135,7 @@ that week, 11:59PM.
 - Oct 16, week 8: review and exam.
   - [[file:exams/01-practice.org][Review questions for clustering]].
   - [[file:exams/02-practice.org][Review questions for change-point detection]].
-  - Mid-term review Weds 18 Oct, exam Fri 20 Oct.
+  - Mid-term review Weds 18 Oct, exam Fri 20 Oct in class.
   - [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 1 due]].
 - Oct 23, [[file:homeworks/09-clustering-model-selection.org][Homework week 9]]: Clustering model selection
   - [[file:slides/09-clustering-model-selection.pdf][Slides]], Estimating the number of clusters, ESL-14.3.11. Model
