@@ -75,4 +75,15 @@ happen with certain initializations, when there are too many
 states. The error message should say something like "optimization not
 converging, which suggests that the model is not identifiable, try a
 smaller value for nstates, or try another random seed."
+You could use tryCatch in the for loop, to catch the error, ignore it, and keep going. For example
 
+#+begin_src R
+fitted.or.null <- tryCatch({
+  fit(model)
+}, error=function(e){
+  NULL
+})
+if(!is.null(fitted.or.null)){
+  Add fitted.or.null results to your list of all results
+}
+#+end_src
