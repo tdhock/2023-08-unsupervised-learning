@@ -5,7 +5,7 @@ testing/documenting/distributing your code as a free/open-source R
 package, as well as writing efficient C/C++ code.
 
 To figure out how to write an R package, you can read the free
-online book [[https://r-pkgs.org/][R packages]], TODO ADD LINK TO VIDEOS.
+online book [[https://r-pkgs.org/][R packages]], [[https://www.youtube.com/playlist?list=PLwc48KSH3D1OkObQ22NHbFwEzof2CguJJ][LINK TO MY VIDEOS]].
 
 You need at least two algorithms from previous coding projects to
 include in your R package.
@@ -71,4 +71,25 @@ Please upload a PDF with
   e.g. https://github.com/tdhock/nc/actions/runs/1062594950
 - code/results from the R terminal from running examples for your
   functions. e.g. example("KMEANS", package="yourPkg") + results.
+
+** FAQ
+
+How to get emacs working for R package compilation?
+
+If you want to use M-x compile in emacs to compile your R package, put
+the following code in package/src/.dir-locals.el
+
+#+begin_src elisp
+((nil . ((compile-command . "R -e \"Rcpp::compileAttributes('..')\" && R CMD INSTALL .. && R --vanilla < ../tests/run_tests.R"))))
+#+end_src
+
+If M-x compile does not work (still runs make), and shows a message in
+minibuffer about irony, then the fix is M-x package-install-packages
+and install packages related to irony.  Also if you would rather just
+type one key to re-compile, put the following in ~/.emacs
+
+#+begin_src elisp
+(global-set-key [f9] 'compile)
+(add-to-list 'safe-local-variable-values '(compile-command . "R -e \"Rcpp::compileAttributes('..')\" && R CMD INSTALL .. && R --vanilla < ../tests/run_tests.R"))
+#+end_src
 
