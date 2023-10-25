@@ -141,6 +141,18 @@ that week, 11:59PM.
 - Oct 23, [[file:homeworks/09-clustering-model-selection.org][Homework week 9]]: Clustering model selection
   - [[file:slides/09-clustering-model-selection.pdf][Slides]], Estimating the number of clusters, ESL-14.3.11. Model
     selection for latent variable models, MLAPP-11.5.
+  - thinking about study habits
+  - 1. What grade do I want in this class? Am I on track to earning
+    that grade?
+  - 2. at least one example of a good study habit that I have been
+    practicing during the first half of the semester, which is helping
+    me earn the grade I want, and which I would like to continue.
+  - 3. at least one example of a change in study habits that I could
+    do in the second half of the semester, in order to earn the grade
+    I want. starting homework earlier, asking questions in class,
+    asking questions with classmates, asking questions during office
+    hours, organizing group study sessions, writing notes based on
+    readings from the textbooks, ...
 - Oct 30, [[file:homeworks/10-segmentation-model-selection.org][Homework week 10]]: Segmentation model selection
   - [[file:slides/10-segmentation-model-selection.pdf][Slides]], for AIC/BIC read MLAPP-5.3.2.4 (BIC approximation to log
     marginal likelihood) and ESL-7.5 (Estimates of
