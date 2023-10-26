@@ -10,6 +10,11 @@ knitr::opts_chunk$set(
   echo=FALSE, results=FALSE,
   fig.width=10,
   fig.height=6)
+library(ggplot2)
+theme_set(
+  ##theme_bw()+theme(panel.spacing=grid::unit(0, "lines"))
+  theme_grey()+theme(text=element_text(size=20))
+)
 ```
 
 # Clustering framework
@@ -29,7 +34,6 @@ head(as.matrix(iris[,"Petal.Length",drop=FALSE]))
 # One column can be visualized as a histogram
 
 ```{r}
-library(ggplot2)
 ggplot()+
   geom_histogram(aes(
     Petal.Length),
@@ -115,7 +119,7 @@ plot.k <- function(k){
     distribution="model",
     feature=grid.vec,
     density=mclust::dens(
-      fit$modelName, grid.vec, parameters=fit$parameters))
+      modelName = fit$modelName, data=grid.vec, parameters=fit$parameters))
   gg.points+
     coord_cartesian(ylim=c(min(set.y), 4))+
     xlab("feature")+
@@ -179,15 +183,17 @@ plot.k <- function(k){
     distribution="model",
     feature=grid.vec,
     density=mclust::dens(
-      fit$modelName, grid.vec, parameters=fit$parameters))
+      modelName = fit$modelName, data=grid.vec, parameters=fit$parameters))
   seg.dt <- data.table(
     distribution="model",
     feature=sim.dt$feature,
     density=mclust::dens(
-      fit$modelName, sim.dt$feature, parameters=fit$parameters))    
+      modelName=fit$modelName, 
+      data=sim.dt$feature, parameters=fit$parameters))    
   lik.dt <- data.table(
     log.lik=sum(mclust::dens(
-      fit$modelName, sim.dt$feature, parameters=fit$parameters, log=TRUE)))
+      modelName=fit$modelName, 
+      data=sim.dt$feature, parameters=fit$parameters, log=TRUE)))
   ggplot()+
     coord_cartesian(ylim=c(min(set.y), 4))+
     xlab("feature")+
@@ -290,10 +296,11 @@ plot.k <- function(n.clusters){
     distribution="model",
     feature=grid.vec,
     density=mclust::dens(
-      fit$modelName, grid.vec, parameters=fit$parameters))
+      modelName=fit$modelName, data=grid.vec, parameters=fit$parameters))
   lik.dt <- sim.dt[, data.table(
     log.lik=sum(mclust::dens(
-      fit$modelName, feature, parameters=fit$parameters, log=TRUE))
+      modelName=fit$modelName, 
+      data=feature, parameters=fit$parameters, log=TRUE))
   ), by=set]
   lik.dt.list[[paste(n.clusters)]] <<- data.table(
     n.clusters, lik.dt)
