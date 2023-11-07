@@ -1,12 +1,12 @@
 Principal components analysis. The goal of this homework is to use PCA
 for dimensionality reduction in a data set of handwritten digit images.
 
-1. use prcomp() on 100 rows of the zip.train data from the ESL book
-   (10 from each class/label, the class in the first column indicates
-   which digit is depicted in the image, an integer from 0 to 9). Make
-   a ggplot with a geom_text that shows each row with its
-   corresponding class label (x=PC1, y=PC2, label=class). Do the
-   classes cluster together in the plot?
+1. use prcomp() on 100 rows of the zip.train data (16 x 16 images, 256
+   pixels per image) from the ESL book (10 from each class/label, the
+   class in the first column indicates which digit is depicted in the
+   image, an integer from 0 to 9). Make a ggplot with a geom_text that
+   shows each row with its corresponding class label (x=PC1, y=PC2,
+   label=class). Do the classes cluster together in the plot?
 
 2. For each number of principal components from 1 to 100, compute the
    reconstruction error (sum of squares between the data and

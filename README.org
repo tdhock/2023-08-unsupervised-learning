@@ -159,6 +159,7 @@ that week, 11:59PM.
     In-Sample Prediction Error) and ESL-7.7 (The Bayesian Approach and
     BIC). [[http://ml.nau.edu/viz/2021-10-21-curveAlignment/][Changepoint ROC curve interactive data viz 1]], [[http://ml.nau.edu/viz/2021-10-21-neuroblastomaProcessed-complex/][data viz 2]]
 - Nov 6, week 11, Veterans day holiday Nov 10. [[file:homeworks/11-principal-components.org][Homework week 11]]: Principal Components Analysis
+  - no office hours this week except Tues 3-4.
   - [[file:slides/11-principal-components.pdf][Slides]], Principal Components Analysis, ESL-14.5. MLAPP-12.2.
 - Nov 13.  [[file:homeworks/12-auto-encoders.org][Homework week 12]]: Auto-encoders
   - [[file:slides/12-auto-encoders.pdf][Slides]], [[file:homeworks/13-auto-encoders-torch.R][torch+luz coding demo]], Deep generative models, MLAPP-28.2
