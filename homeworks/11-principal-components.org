@@ -28,11 +28,12 @@ Your task this week is to implement a function PCA which computes
 principal components analysis "from scratch" using the base::svd
 function in R. Use the text and equations in the book, and make sure
 to center each column before using svd, via scale(X, center=TRUE,
-scale=FALSE). Use can use u %*% diag(d) to convert the svd output to
-the principal components matrix (rotation element of prcomp
-output). Use your function on the same data set as problem 1
-above. Plot the reconstruction error as in problem 2 using different
-colors/sizes for different functions (e.g., black=prcomp/2,
-red=PCA/1). Does your function result in the same values for the
-reconstruction error?
+scale=FALSE). You can use u %*% diag(d) to convert the svd output to
+the principal components matrix (x element of prcomp output). The
+principal directions matrix is the v component from svd (and the
+rotation component from prcomp). Use your function on the same data
+set as problem 1 above. Plot the reconstruction error as in problem 2
+using different colors/sizes for different functions (e.g.,
+black=prcomp/2, red=PCA/1). Does your function result in the same
+values for the reconstruction error?
 
