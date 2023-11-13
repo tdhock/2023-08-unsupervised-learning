@@ -171,7 +171,7 @@ that week, 11:59PM.
   - [[file:slides/14-other-dimensionality-reduction.pdf][Slides]], Reading: [[https://cloud.r-project.org/web/packages/dimRed/vignettes/dimensionality-reduction.pdf][dimRed vignette]], no quiz.
 - Dec 4, Reading week, [[file:exams/03-practice.org][final exam review questions]],
   [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
-- Finals week, exam TODO DATE.
+- Finals week, exam 10-noon Weds Dec 13.
 
 ** General Questions and Answers (FAQ)
 
