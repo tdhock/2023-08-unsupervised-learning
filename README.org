@@ -164,6 +164,9 @@ that week, 11:59PM.
 - Nov 13.  [[file:homeworks/12-auto-encoders.org][Homework week 12]]: Auto-encoders
   - [[file:slides/12-auto-encoders.pdf][Slides]], [[file:homeworks/13-auto-encoders-torch.R][torch+luz coding demo]], Deep generative models, MLAPP-28.2
     to 28.3. Deep auto-encoders, MLAPP-28.3.2. MLAPP-28.4.2 to 28.4.3.
+  - [[https://rcdata.nau.edu/genomic-ml/animint2-manual/Ch18-neural-networks.html][Animint2 Manual Ch18 Neural Networks]], which shows how to implement
+    automatic differentiation from scratch in R code (useful for
+    understanding how torch works).
 - Nov 20, week 13, no homework but please start working on your R
   package coding project. 
   - class cancelled on Monday and Friday, Thanksgiving holiday Nov 23-24.

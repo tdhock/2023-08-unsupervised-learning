@@ -32,8 +32,8 @@ zip_dataset <- torch::dataset(
 ## the some.zip.X matrix.
 zip_train <- zip_dataset(some.zip.X)
 length(zip_train)
-zip_train[1:2]
-
+list.of.data <- zip_train[1:3]
+str(list.of.data)
 ## set seed to control random number generation.
 torch::torch_manual_seed(777)
 
@@ -66,7 +66,10 @@ autoencoder <- torch::nn_module(
     self$decode(z)
   }
 )
-
+str(autoencoder)
+autoencoder.instance = autoencoder()
+autoencoder.instance(list.of.data$x)
+autoencoder.instance$encode(list.of.data$x)
 
 ## dataloader is used to specify batch size.
 train_dl <- torch::dataloader(
