@@ -10,7 +10,9 @@ if(!file.exists(destfile)){
   download.file(zip.url, destfile)
 }
 zip.dt <- data.table::fread(file=destfile)
-some.zip.dt <- zip.dt[1:100,]
+n.train <- 100
+some.zip.dt <- zip.dt[1:n.train,]
+some.zip.y <- zip.dt[1:n.train,V1]
 some.zip.X <- as.matrix(some.zip.dt[,-1])
 
 ## zip_dataset is a class which represents a zip data set.
@@ -32,7 +34,7 @@ zip_dataset <- torch::dataset(
 ## the some.zip.X matrix.
 zip_train <- zip_dataset(some.zip.X)
 length(zip_train)
-list.of.data <- zip_train[1:3]
+list.of.data <- zip_train[1:n.train]
 str(list.of.data)
 ## set seed to control random number generation.
 torch::torch_manual_seed(777)
@@ -68,8 +70,16 @@ autoencoder <- torch::nn_module(
 )
 str(autoencoder)
 autoencoder.instance = autoencoder()
-autoencoder.instance(list.of.data$x)
-autoencoder.instance$encode(list.of.data$x)
+str(autoencoder.instance(list.of.data$x))
+
+code.mat <- autoencoder.instance$encode(list.of.data$x)
+code.dt <- data.table(as.matrix(code.mat), label=some.zip.y)
+ggplot()+
+  theme(text=element_text(size=20))+
+  geom_text(aes(
+    V1, V2, label=label),
+    size=10,
+    data=code.dt)
 
 ## dataloader is used to specify batch size.
 train_dl <- torch::dataloader(
@@ -77,11 +87,15 @@ train_dl <- torch::dataloader(
 
 ## luz package provides high level interface for training, similar to
 ## keras.
+my_optimizer <- function(parameters){
+  torch::optim_sgd(parameters, lr=0.0001)
+}
+torch::torch_manual_seed(777)
 after.setup <- luz::setup(
   autoencoder,
   loss=torch::nnf_mse_loss,
-  optimizer=torch::optim_adadelta)
-fitted <- luz::fit(after.setup, train_dl, epochs=100)
+  optimizer=my_optimizer)
+fitted <- luz::fit(after.setup, train_dl, epochs=200)
 
 ## Train MSE plot, compare with PCA.
 pca.fit <- prcomp(some.zip.X, rank=2)
@@ -102,8 +116,20 @@ for(model.name in names(reconstruction.list)){
     mse=as.numeric(mean((some.zip.X-pred.mat)^2)))
 }
 (mse.dt <- do.call(rbind, mse.dt.list))
+
+code.mat <- fitted$model$encode(list.of.data$x)
+code.dt <- data.table(as.matrix(code.mat), label=some.zip.y)
+ggplot()+
+  theme(text=element_text(size=20))+
+  geom_text(aes(
+    V1, V2, label=label),
+    size=10,
+    data=code.dt)
+
+
 (train.loss <- luz::get_metrics(fitted))
 ggplot()+
+  theme(text=element_text(size=20))+
   scale_y_continuous("Mean Squared Error")+
   geom_hline(aes(
     yintercept=mse, color=model.name),
@@ -113,12 +139,3 @@ ggplot()+
     data=data.table(
       model.name="autoencoder", train.loss))
 
-low.dim.tensor <- fitted$model$encode(zip_train$x)
-low.dim.mat <- as.matrix(low.dim.tensor)
-low.dim.dt <- data.table(
-  label=factor(some.zip.dt[[1]]),
-  low.dim.mat)
-ggplot()+
-  geom_text(aes(
-    V1, V2, label=label),
-    data=low.dim.dt)

@@ -62,7 +62,7 @@ affects overfitting.
   (256,10,2,10,256) to (256,100,2,100,256) to see if the number of
   intermediate units affects overfitting.
 - Create a variable named model.list, which should be a list of the
-  two keras models described above. Make a for loop over these two
+  two torch models described above. Make a for loop over these two
   models, and use a 50% subtrain, 50% validation split.
 - Make a ggplot of y=square loss as a function of x=iterations, with
   different sets in different colors (e.g., subtrain=black,
