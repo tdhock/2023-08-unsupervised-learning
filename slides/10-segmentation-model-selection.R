@@ -1,7 +1,5 @@
-suppressPackageStartupMessages({
-  library(data.table)
-  library(ggplot2)
-})
+library(data.table)
+library(ggplot2)
 set.colors <- c(subtrain="black", validation="red")
 theme_set(
   theme_bw()+
