@@ -172,9 +172,11 @@ that week, 11:59PM.
   - class cancelled on Monday and Friday, Thanksgiving holiday Nov 23-24.
 - Nov 27, [[file:homeworks/14-other-dimensionality-reduction.org][Homework week 14]]. 
   - [[file:slides/14-other-dimensionality-reduction.pdf][Slides]], Reading: [[https://cloud.r-project.org/web/packages/dimRed/vignettes/dimensionality-reduction.pdf][dimRed vignette]], no quiz.
-- Dec 4, Reading week, [[file:exams/03-practice.org][final exam review questions]],
-  [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
+- Dec 4, Reading week, [[file:exams/03-practice.org][final exam review questions]], Weds Dec 7.
+  - [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
 - Finals week, exam 10-noon Weds Dec 13.
+  - It will be open-note: during the real exam, you are allowed one sheet of paper, filled in with your own notes, in your own handwriting.
+
 
 ** General Questions and Answers (FAQ)
 
