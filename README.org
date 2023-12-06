@@ -175,16 +175,17 @@ that week, 11:59PM.
 - Dec 4, Reading week, [[file:exams/03-practice.org][final exam review questions]], Weds Dec 7.
   - [[file:homeworks/Rpkg.org][CS599 grad student R package coding project 2 due]].
 - Finals week, exam 10-noon Weds Dec 13.
-  - It will be open-note: during the real exam, you are allowed one sheet of paper, filled in with your own notes, in your own handwriting.
-
+  - It will be open-note: during the real exam, you are allowed one
+    sheet of paper (front and back), filled in with your own notes, in
+    your own handwriting.
 
 ** General Questions and Answers (FAQ)
 
 - can I do my homework with an older version of R? Maybe, try it if
   you want, but homeworks will typically require using R packages,
-  which are only tested with the most recent versions of R, so if you
-  are getting errors with an old version of R, try upgrading to the
-  most recent version.
+  which are typically only tested with the most recent versions of R,
+  so if you are getting errors with an old version of R, try upgrading
+  to the most recent version.
 - Some function give me a NULL result, how can I work around that? Try
   if(!is.null(result)){save your results}
 - Some for loop over N items takes a long time, but failed/errored at

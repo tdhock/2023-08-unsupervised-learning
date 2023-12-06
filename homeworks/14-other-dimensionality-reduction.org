@@ -24,5 +24,3 @@ algorithms.
    for scores). Make sure the matrix has row and column names, then
    print it out. For each quality score, which method is best?
 
-For the CS599 grad students, no extra assignment this week. For extra
-credit, you may start a third [[file:Rpkg.org][R package coding project]].
