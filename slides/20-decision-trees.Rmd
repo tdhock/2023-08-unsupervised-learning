@@ -1,0 +1,840 @@
+---
+title: "Decision trees"
+author: "Toby Dylan Hocking"
+output:
+  beamer_presentation:
+    includes:
+      in_header: 05-preamble.tex
+---
+
+```{r opts, echo=FALSE}
+knitr::opts_chunk$set(
+  echo=FALSE, results=FALSE,
+  fig.width=10,
+  fig.height=6)
+library(ggplot2)
+my.theme <- theme_grey()+
+  theme(text=element_text(size=14))
+theme_set(my.theme)
+```
+
+# TODO
+
+```{r}
+N.col <- 4
+N.row <- 200
+set.seed(1)
+X.mat <- matrix(runif(N.col*N.row), N.row, N.col)
+hidden <- X.mat[,1]<0.6 & X.mat[,2]<0.7
+y.vec <- ifelse(hidden-0.5+rnorm(N.row,sd=0.5) < 0, 0, 1)
+table(y.vec, hidden)
+library(ggplot2)
+library(data.table)
+xy.dt <- data.table(y=y.vec, X.mat)
+ggplot()+
+  geom_point(aes(
+    V1, V2, color=factor(y)),
+    data=xy.dt)
+ggplot()+
+  geom_point(aes(
+    V3, V4, color=factor(y)),
+    data=xy.dt)
+TODO tree as env
+cumsum
+```
+
+# Learning algorithm
+
+- Start with one segment, then repeat:
+- Compute loss of each possible split.
+- Choose split which results in largest loss decrease.
+- If $s = \sum_{i=1}^n x_i$ is the sum over $n$ data points, then the
+  mean is $s/n$ and the square loss (from 1 to $n$) is
+$$L_{1,n} = \sum_{i=1}^n (x_i - s/n)^2 = \sum_{i=1}^n [x_i^2] - 2(s/n)s + n(s/n)^2 $$
+- Given cumulative sums, and a split point $t$, we can compute square
+  loss from 1 to $t$, $L_{1,t}$, and from $t+1$ to $n$, $L_{t+1,n}$,
+  in constant $O(1)$ time.
+- We can minimize over all changepoints $t$ in linear $O(n)$ time,
+$$\min_{t\in\{1,\dots,n-1\}} L_{1,t} + L_{t+1,n}$$
+
+---
+
+# First step of binary segmentation
+
+```{r}
+x.vec <- one.dt[["logratio"]]
+n.data <- length(x.vec)
+hjust.vec <- c("before"=1, "after"=0)
+before.after <- function(x.or.sq){
+  cbind(
+    before=cumsum(x.or.sq[-length(x.or.sq)]),
+    after=rev(cumsum(rev(x.or.sq[-1]))))
+}
+end.vec <- seq(1, n.data-1)
+n.mat <- cbind(end.vec, rev(end.vec))
+const.mat <- before.after(x.vec^2)
+s.mat <- before.after(x.vec)
+l.mat <- const.mat-s.mat^2/n.mat
+err.dt <- data.table(
+  loss=l.mat,
+  loss.total=rowSums(l.mat),
+  mean=s.mat/n.mat,
+  end=end.vec)
+first.min <- err.dt[which.min(loss.total)]
+
+plotChange <- function(show.i){
+  show.change <- err.dt[show.i]
+  show.long <- melt(
+    show.change,
+    measure=c("loss.before", "loss.after"))
+  show.segs <- data.table(
+    start=c(1, show.i+1),
+    end=c(show.i, n.data),
+    mean=s.mat[show.i,]/n.mat[show.i,])
+  ggplot()+
+    geom_point(aes(
+      data.i, logratio),
+      data=data.table(y="logratio", one.dt))+
+    geom_vline(aes(
+      xintercept=end+0.5),
+      color=model.color,
+      data=show.change)+
+    geom_text(aes(
+      end+0.5, -Inf, label=sprintf(" total loss=%.4f", loss.total)),
+      color=model.color,
+      hjust=0,
+      vjust=-0.1,
+      data=data.table(y="loss", show.change))+
+    geom_text(aes(
+      end+0.5, -Inf,
+      label=sprintf(" %s=%.4f ", variable, value),
+      hjust=hjust.vec[sub("loss.","",variable)]),
+      color=model.color,
+      data=data.table(y="logratio", show.long),
+      vjust=-0.1)+
+    geom_point(aes(
+      end+0.5, loss.total),
+      shape=21,
+      data=data.table(y="loss", err.dt))+
+    facet_grid(y ~ ., scales="free")+
+    geom_segment(aes(
+      start-0.5, mean,
+      xend=end+0.5, yend=mean),
+      size=2,
+      alpha=0.5,
+      color=model.color,
+      data=data.table(y="logratio", show.segs))
+}
+plotChange(31)
+```
+
+---
+
+# First step of binary segmentation
+
+```{r}
+plotChange(41)
+```
+
+---
+
+# First step of binary segmentation
+
+```{r}
+plotChange(111)
+```
+
+---
+
+# First step of binary segmentation
+
+```{r}
+plotChange(157)
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+(seg.info <- first.min[, data.table(
+  start=c(1, end+1),
+  end=c(end, nrow(one.dt)),
+  seg=factor(c("before", "after"), c("before", "after")),
+  offset=c(0, end))])
+seg.ord <- list(first=identity, other=rev)
+for(name in names(seg.ord)){
+  fun <- seg.ord[[name]]
+  for(data.type in c("mean","loss")){
+    col.vec <- paste0(data.type,".",c("before","after"))
+    orig.ord <- unlist(first.min[, ..col.vec])
+    set(seg.info, j=paste0(name, ".", data.type), value=fun(orig.ord))
+  }
+}
+seg.info
+
+one.dt[, i := data.i]
+setkey(one.dt, data.i, i)
+setkey(seg.info, start, end)
+two.dt <- foverlaps(one.dt, seg.info)
+##two.dt <- data.table(one.dt)[seg.info, on=.(i <= end, i >= start)]
+two.err <- two.dt[, {
+  rel.end <- seq(1, .N-1)
+  n.mat <- cbind(rel.end, rev(rel.end))
+  const.mat <- before.after(logratio^2)
+  s.mat <- before.after(logratio)
+  l.mat <- const.mat-s.mat^2/n.mat
+  data.table(
+    mean=s.mat/n.mat,
+    loss.this=rowSums(l.mat),
+    loss.decrease=first.loss-rowSums(l.mat),
+    loss=other.loss+rowSums(l.mat),
+    new.end=rel.end+offset)
+}, by=names(seg.info)]
+
+plot2 <- function(show.i){
+  (show.err <- two.err[show.i])
+  show.other <- seg.info[seg != show.err$seg]
+  show.change <- show.err[, .(seg, start, end=new.end, mean=mean.before)]
+  show.segs <- rbind(
+    show.other[, .(seg, start, end, mean=first.mean)],
+    show.change,
+    show.err[, .(seg, start=new.end+1, end, mean=mean.after)])
+  ggplot()+
+    geom_point(aes(
+      data.i, logratio),
+      data=data.table(y="logratio", two.dt))+
+    geom_point(aes(
+      new.end+0.5, loss),
+      shape=21,
+      data=data.table(y="loss", two.err))+
+    geom_segment(aes(
+      start-0.5, mean,
+      xend=end+0.5, yend=mean),
+      size=2,
+      alpha=0.5,
+      color=model.color,
+      data=data.table(y="logratio", show.segs))+
+    geom_vline(aes(
+      xintercept=end+0.5),
+      color=model.color,
+      data=show.change)+
+    facet_grid(y ~ ., scales="free", space="free")+
+    scale_x_continuous(
+      breaks=seq(0, 1000, by=20))+
+    coord_cartesian(expand=TRUE)
+}
+plot2(15)
+
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+plot2(30)
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+plot2(100)
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+plot2(112)
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+plot2(156)
+```
+
+---
+
+# Second step of binary segmentation
+
+```{r}
+plot2(200)
+```
+
+---
+
+# Efficient loss computation
+
+- Minimization can be performed by choosing the split with loss (black
+  point) which maximizes the decrease in loss with respect to previous
+  model (red, with no split).
+
+```{r}
+first.min.long <- nc::capture_melt_single(
+  first.min, "loss.",
+  seg="before|after", function(x)factor(x, c("before", "after")))
+ggplot()+
+  geom_hline(aes(
+    yintercept=value),
+    color="red",
+    data=data.table(
+      y="loss on this segment", first.min.long))+
+  geom_point(aes(
+    new.end+0.5, loss),
+    shape=21,
+    data=data.table(y="total loss", two.err))+
+  geom_point(aes(
+    new.end+0.5, loss.this),
+    shape=21,
+    data=data.table(y="loss on this segment", two.err))+
+  facet_grid(y ~ seg, scales="free", space="free_x")+
+  scale_x_continuous(
+    "data.i",
+    breaks=seq(0, 1000, by=20))
+
+```
+
+---
+
+# Learning algorithm, implementation details
+
+First compute the vectors of cumulative sums of data and squares,
+$y_1=z_1=0, y_t=\sum_{i=1}^{t-1} x_i, z_t=\sum_{i=1}^{t-1} x_i^2$, for
+all $t\in\{2,\dots,n+1\}$.
+
+Assume there is some set $\mathcal S$ of segments that could be split,
+each $(j,e)\in\mathcal S$ is a segment start $j$ and end
+$e$ (both in $1,\dots,n$).
+
+Then the next segment to split $(j,e)$, and best split point $t$, are defined by
+the best loss decrease,
+
+$$
+\max_{(j,e)\in\mathcal S}
+\alert{\underbrace{L_{j,e}}_{\text{loss before split}}}-
+\min_{t\in\{j,\dots,e-1\}} 
+\underbrace{L_{j,t} + L_{t+1,e}}_{\text{loss after split}} 
+$$
+
+Use the cumsum trick to compute loss in constant time,
+$$\sum_{i=j}^t x_i = y_{t+1} - y_j.$$
+$$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)^2/(t-j+1).$$
+
+---
+
+# Learning algorithm, recursion/pseudo-code
+
+Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,n}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and 
+let $f(j,e)=\min,\argmin_{t\in \{j,\dots,e-1\}} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
+
+Initialization. Let $\mathcal L_1=L_{1,n}$ be the loss with one segment, 
+and let $\mathcal S_1=\{(1,n,f(1,n))\}$ be the initial segment to split.
+
+Recursion. For all $k\in\{2,\dots,K\}$: (max segments $K\leq n$)
+
+* $j^*_k, e^*_k, d^*_k, t^*_k = \argmin_{(j,e,d,t)\in\mathcal S_{k-1}} d$ (best segment to split)
+* $\mathcal L_k=\mathcal L_{k-1} +d^*_k$, (loss)
+* $\mathcal N_k=\{
+(j^*_k, t^*_k),
+(t^*_k+1,e^*_k)
+\}$ (new segments)
+* $\mathcal V_k=\{(j,e,f(j,e))\mid (j,e)\in\mathcal N_k,\, j<e\}$ (splittable segments)
+* $\mathcal S_k=
+[\mathcal S_{k-1}\setminus (j^*_k, e^*_k, d^*_k, t^*_k)]
+\cup\mathcal V_k$ (segments to search)
+
+---
+
+# Modification for min segment length
+
+Sometimes there is prior knowledge that there should be no segments
+with fewer data points than $\ell\in\{1,2,\dots\}$, and in that case
+there is a simple modification:
+
+* $f(j,e)=\min,\argmin_{t\in\{
+\alert{j+\ell-1,\dots,e-\ell}
+\}} D_{j,e}(t)$ (best split)
+* $\mathcal V_k=\{(j,e,f(j,e))\mid (j,e)\in\mathcal N_k,\, 
+\alert{e-j+1\geq 2\ell}\}
+\}$ (splittable segments)
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+one.pid.chr <- nb.dt[profile.id==2 & chromosome==2]
+one.pid.chr[, data.i := .I]
+cum.data.vec <- c(0, cumsum(one.pid.chr[["logratio"]]))
+possible_splits <- function(seg.dt){
+  some.segs <- seg.dt[full_seg_start<full_seg_end]
+  if(nrow(some.segs)==0)return(NULL)
+  possible.dt <- some.segs[, {
+    before_seg_end <- seq(full_seg_start, full_seg_end-1)
+    data.table(
+      before_seg_start=full_seg_start,
+      before_seg_end,
+      after_seg_start=before_seg_end+1L,
+      after_seg_end=full_seg_end
+    )
+  }, by=.(full_seg_start, full_seg_end)]
+  name <- function(suffix)paste0(seg_name, "_seg_", suffix)
+  value <- function(suffix)possible.dt[[name(suffix)]]
+  for(seg_name in c("before", "after", "full")){
+    end <- value("end")
+    start <- value("start")
+    N.data <- end-start+1
+    sum.data <- cum.data.vec[end+1]-cum.data.vec[start]
+    set(
+      possible.dt,
+      j=name("loss"),
+      value=-sum.data^2/N.data)
+    set(
+      possible.dt,
+      j=name("mean"),
+      value=sum.data/N.data)
+  }
+  possible.dt[
+  , split_loss := before_seg_loss + after_seg_loss][
+  , loss_diff := split_loss-full_seg_loss][]
+}
+get_segs <- function(best){
+  nc::capture_melt_multiple(
+    best,
+    seg="before|after",
+    "_seg_",
+    column="start|end|mean"
+  )[order(start)][, startChange := c(FALSE, TRUE)]
+}
+get_vlines <- function(segs){
+  segs[start>1][startChange==FALSE, computed := "previously"]
+}
+(prev.best.tall <- data.table(start=1L, end=nrow(one.pid.chr)))
+prev.best.i <- NULL
+plot.iteration <- function(){
+  (it.segs <- prev.best.tall[, .(
+    full_seg_start=start, full_seg_end=end)])
+  (it.possible <- possible_splits(it.segs))
+  prev.not.best <- if(!is.null(prev.best.i))prev.splits.dt[-prev.best.i]
+  it.possible.show <- rbind(
+    if(!is.null(prev.best.i))data.table(
+      computed="previously",
+      prev.not.best),
+    if(!is.null(it.possible))data.table(
+      computed="this step", it.possible))
+  (it.splits.dt <- rbind(
+    if(!is.null(prev.best.i))prev.not.best,
+    if(!is.null(it.possible))it.possible[, {
+      .SD[which.min(loss_diff)]
+    }, by=.(full_seg_start, full_seg_end)]))
+  it.best.i <- it.splits.dt[, which.min(loss_diff)]
+  it.best <- it.splits.dt[it.best.i]
+  it.best.tall <- get_segs(it.best)
+  it.segs.dt <- rbind(
+    if(!is.null(prev.best.i))prev.segs.dt[
+      !it.best, on=c(start="full_seg_start", end="full_seg_end")
+    ][, computed := "previously"],
+    data.table(computed="this step", it.best.tall))
+  it.vlines <- get_vlines(it.segs.dt)
+  computed.colors <- c(
+      "this step"="red",
+      "previously"="deepskyblue")
+  gg <- ggplot()+
+    facet_grid(panel ~ ., scales="free")+
+    geom_blank(aes(
+      0,0,color=computed),
+      data=data.table(computed=names(computed.colors)))+
+    scale_color_manual(
+      values=computed.colors,
+      breaks=names(computed.colors))+
+    scale_x_continuous(
+      "data.i (position/index in data sequence)",
+      limits=c(0, nrow(one.pid.chr)+1))+
+    scale_y_continuous(
+      "logratio (noisy copy number measurement)",
+      labels=scales::scientific)+
+    geom_point(aes(
+      data.i, logratio),
+      data=data.table(panel="data", one.pid.chr))+
+    geom_point(aes(
+      before_seg_end+0.5, loss_diff, color=computed),
+      shape=1,
+      data=data.table(panel="loss difference", it.possible.show))+
+    geom_vline(aes(
+      xintercept=start-0.5,
+      color=computed),
+      data=data.table(
+        panel="data",
+        it.vlines[computed=="previously"]))+
+    geom_vline(aes(
+      xintercept=start-0.5,
+      color=computed),
+      data=it.vlines[computed=="this step"])+
+    geom_segment(aes(
+      start-0.5, mean,
+      color=computed,
+      xend=end+0.5, yend=mean),
+      size=2,
+      alpha=0.5,
+      data=data.table(panel="data", it.segs.dt))
+  suppressWarnings(print(gg))
+  prev.best.i <<- it.best.i
+  prev.best.tall <<- it.best.tall
+  prev.segs.dt <<- it.segs.dt
+  prev.splits.dt <<- it.splits.dt
+}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Visualization of computations at each iteration
+
+```{r}
+plot.iteration()
+```
+
+---
+
+# Complexity analysis
+
+- Assume $n$ data and $K$ segments.
+- Computing best loss decrease and split point for a segment with $t$
+  data takes $O(t)$ time.
+- Keep a list of segments which could be split, sorted by loss
+  decrease values.
+- Best case is when segments get cut in half each time, $O(n \log K)$
+  time. (minimize number of possible splits for which we have to recompute loss)
+- Worst case is when splits are very unequal (1, $t-1$), $O(n K)$
+  time. (maximize number of possible splits for which we have to
+  recompute loss)
+
+---
+
+# Detailed complexity analysis
+
+- Let $n=2^J$ for some $J\in\{1,2,\dots\}$, for example $J=6
+  \Rightarrow n=64$.
+- For any $j\in\{1,\dots,J+1\}$ if we do $I=2^{j-1}$ iterations
+  then how many split cost values to compute?
+- Best case: $nj -2^j + 1 = n(1+\log_2 I) -I/2 +1 \Rightarrow O(n \log I)$.
+- Worst case: $nI - I(1+I)/2 \Rightarrow O(nI)$.
+ 
+```{=latex}
+\small
+\begin{tabular}{cccccc}
+$j$ & $I$ & best & total & worst & total \\
+\hline
+1 & 1 & $n-1=63$  & $n-1=63$    & $n-1=63$ & $n-1=63$ \\
+2 & 2 & $n-2=62$  & $2n-3=125$  & $n-2=62$ & $2n-3=125$ \\
+  & 3 & $n/2-2=30$&             & $n-3=61$ & $3n-6=186$ \\
+3 & 4 & $n/2-2=30$& $3n-7=185$  & $n-4=60$ & $4n-10=246$ \\
+$\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$\\
+4 & 8 & $n/4-2=14$& $4n-15=241$ & $n-8=56$ & $8n-36=476$ \\
+$\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$ \\
+7 & 64 & $n/32-2=0$&$7n-128=321$ & $n-64=0$ & $64n-2080=2016$ \\
+\end{tabular}
+```
+
+---
+
+# Real data time complexity analysis
+
+```{r, fig.height=4}
+N.exp <- 6
+N.data <- 2^N.exp
+N.exp.seq <- 1:N.exp
+(size.after.split <- as.integer(N.data/rep(2^N.exp.seq, 2^(N.exp.seq-1))))
+new.splits <- data.table(
+  best=(size.after.split-1)*2,
+  worst=seq(N.data-2, 0))
+split.dt.list <- list()
+for(case in names(new.splits)){
+  split.dt.list[[case]] <- data.table(
+    case,
+    segments=seq(1, N.data),
+    splits=c(N.data-1, new.splits[[case]]))
+}
+(split.dt <- do.call(rbind, split.dt.list))
+(splits.wide <- dcast(split.dt, segments ~ case, value.var="splits"))
+approx.dt <- one.dt[, {
+  pos <- seq(min(position), max(position), l=N.data)
+  data.table(
+    pos,
+    data.i=seq_along(pos),
+    logratio=approx(position, logratio, pos)[["y"]])
+}]
+data.list <- list(
+  linear=1:N.data,#best
+  sin=sin((1:N.data)/2),
+  constant.noiseless=rep(0, N.data),
+  real=approx.dt[["logratio"]],
+  constant.noisy=rnorm(N.data),
+  exponential=2^(1:N.data),
+  up.and.down=(1:N.data) %% 2)#worst
+fit.dt.list <- list()
+data.dt.list <- list()
+segs.dt.list <- list()
+for(data.name in names(data.list)){
+  bad.data.vec <- data.list[[data.name]]
+  print(data.name)
+  fit <- suppressWarnings(binsegRcpp::binseg_normal(bad.data.vec))
+  s <- function(x)ifelse(x==1, 0, 1)
+  new.segs <- fit$splits[, s(after.size)+s(before.size)]
+  map.size.after.erase <- cumsum(c(1, new.segs[-1]-1))
+  ## print(data.name)
+  ## print(map.size.after.erase)
+  coef.dt <- coef(fit, 2:5)
+  coef.dt[, panel := segments]
+  segs.dt.list[[data.name]] <- data.table(
+    data.name,
+    coef.dt)
+  data.dt.list[[data.name]] <- data.table(
+    data.name,
+    data.i=seq_along(bad.data.vec),
+    data.value=bad.data.vec
+    )
+  ##set(fit, j="data", value=bad.data.vec)#segfault TODO post issue.
+  ##fit[["data"]] <- bad.data.vec
+  fit.dt.list[[data.name]] <- data.table(
+    data.name,
+    data=bad.data.vec,
+    fit$splits)
+}
+
+(fit.dt <- do.call(rbind, fit.dt.list))
+(data.dt <- do.call(rbind, data.dt.list))
+(segs.dt <- do.call(rbind, segs.dt.list))
+fit.dt[, splits := before.size-1+ifelse(is.na(after.size), 0, after.size-1)]
+showCase <- function(show.name){
+  show.data <- data.dt[data.name==show.name]
+  show.segs <- segs.dt[data.name==show.name]
+  show.fit <- fit.dt[data.name==show.name]
+  gg.data <- ggplot()+
+    geom_point(aes(
+      data.i, data.value),
+      data=show.data)+
+    geom_segment(aes(
+      start-0.5, mean,
+      xend=end+0.5, yend=mean),
+      data=show.segs,
+      size=2,
+      alpha=0.5,
+      color=model.color)+
+    geom_vline(aes(
+      xintercept=start-0.5),
+      data=show.segs[start>1],
+      color=model.color)+
+    facet_grid(segments ~ ., labeller=label_both)
+  print(gg.data)
+  emp.case <- paste0("empirical\n", show.name)
+  emp.case <- "empirical"
+  show.splits <- rbind(
+    split.dt,
+    show.fit[, .(case=emp.case, segments, splits)])
+  case.colors <- c("deepskyblue", "black", "red")
+  names(case.colors) <- c("worst", emp.case, "best")
+  show.totals <- show.splits[, .(total.splits=sum(splits)), by=case][
+    names(case.colors), on="case"]
+  show.totals[, label := sprintf("case=%s\nsplits=%d", case, total.splits)]
+  show.dl <- show.totals[show.splits, on="case"]
+  show.totals[, y := N.data-.I*5]
+  gg.splits <- ggplot()+
+    ggtitle(paste0(
+      "Number of splits for which loss is computed, empirical data type=",
+      show.name))+
+    geom_line(aes(
+      segments, splits, color=case),
+      data=show.splits[!grepl("empirical", case)])+
+    geom_point(aes(
+      segments, splits, color=case),
+      data=show.splits[grepl("empirical", case)])+
+    geom_text(aes(
+      N.data, y, label=sprintf(
+        "%s case total splits=%d",
+        case, total.splits),
+      color=case),
+      hjust=1,
+      data=show.totals)+
+    scale_color_manual(
+      values=case.colors,
+      breaks=names(case.colors),
+      guide="none")
+  print(gg.splits)
+}
+
+showCase("real")
+```
+
+---
+
+# Synthetic data time complexity analysis
+
+```{r, fig.height=4}
+showCase("up.and.down")
+```
+
+---
+
+# Synthetic data time complexity analysis
+
+```{r, fig.height=4}
+showCase("exponential")
+```
+
+---
+
+# Synthetic data time complexity analysis
+
+```{r, fig.height=4}
+showCase("sin")
+```
+
+---
+
+# Synthetic data time complexity analysis
+
+```{r, fig.height=4}
+showCase("linear")
+```
+
+---
+
+# Analysis of insert time and storage
+
+To store previously computed best loss/split for each segment, use a
+C++ Standard template library multimap, keyed by loss decrease. If
+multimap has $p$ items then insert takes $O(\log p)$ time. Below:
+inserts column shows $p$ for each insert, and size column shows $p$
+after inserts. Total
+$-\log(I-1) + \sum_{p=1}^{I-1} 2\log p\in O(I\log I)$
+time over all inserts, smaller than $O(n\log I)$ time for split computation.
+
+```{=latex}
+\small
+\begin{tabular}{ccccc}
+     & equal splits   &      & unequal splits &  \\
+ iteration $I$ & inserts & size & inserts & size \\
+\hline
+ 1 & 0   & 1 & 0 & 1 \\
+ 2 & 0,1 & 2 & 0 & 1 \\ 
+ 3 & 1,2 & 3 & 0 & 1 \\
+$\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
+32 & 30,31 & 32 & 0 & 1 \\
+33 &       & 31 & 0 & 1 \\
+34 &       & 30 & 0 & 1 \\
+$\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
+62 &       & 2 & 0 & 1 \\
+63 &       & 1 & 0 & 1
+\end{tabular}
+```
+
+---
+
+# Comparison with previous algorithms from clustering
+
+- Binary segmentation has segment/cluster-specific mean parameter, as
+  in K-means and Gaussian mixture models. These algorithms attempt
+  optimization of an error function which measures how well the means
+  fit the data (but are not guaranteed to compute the globally
+  optimal/best model).
+- Binary segmentation is deterministic (different from K-means/GMM
+  which requires random initialization). It performs a sequence of
+  greedy minimizations (as in hierarchical clustering).
+- Binary segmentation defines a sequence of split operations (from 1
+  segment to N segments), whereas agglomerative hierarchical
+  clustering defines a sequence of join operations (from N clusters to
+  1 cluster). Data with common segment mean must be adjacent in
+  time/space; hierarchical clustering joins may happen between any
+  pair of data points (no space/time dimension).
+
+---
+
+# Possible exam questions
+
+- Explain in detail one similarity and one difference between binary
+  segmentation and k-means. (gaussian mixture models, hierarchical
+  clustering)
+- For a sequence of $n=10$ data, we need to compute the loss for each
+  of the 9 possible splits in the first iteration of binary
+  segmentation. What is the number of splits for which we must compute
+  the loss in the second/third steps? (best and worst case)
