@@ -31,6 +31,7 @@ y.vec <- ifelse(hidden-0.5+rnorm(N.row,sd=0.5) < 0, 0, 1)
 table(y.vec, hidden)
 library(ggplot2)
 library(data.table)
+
 xy.dt <- data.table(y=y.vec, X.mat)
 ggplot()+
   geom_point(aes(
@@ -54,11 +55,12 @@ ggplot()+
 
 candidate_loss <- function(indices){
   split.loss.list <- list()
+  y.sub <- y.vec[indices]
   for(feature in 1:N.col){
-    x.vec <- X.mat[,feature]
-    ord.indices <- order(x.vec)
-    x.ord <- x.vec[ord.indices]
-    y.cum <- c(0,cumsum(y.vec[ord.indices]))
+    x.sub <- X.mat[indices,feature]
+    ord.indices <- order(x.sub)
+    x.ord <- x.sub[ord.indices]
+    y.cum <- c(0,cumsum(y.sub[ord.indices]))
     Loss <- function(first,last){
       num.data <- last-first+1
       num.pos <- y.cum[last+1]-y.cum[first]
@@ -84,22 +86,104 @@ candidate_loss <- function(indices){
   rbindlist(split.loss.list)
 }
 
-dtree <- new.env()
-dtree$indices <- 1:N.row
-split.loss <- candidate_loss(dtree$indices)
+new_node <- function(indices){
+  node <- new.env()
+  node$indices <- indices
+  node$pred <- mean(y.vec[indices])
+  node$loss <- candidate_loss(indices)
+  node$best <- node$loss[which.min(loss.split)]
+  node$terminal <- TRUE
+  node$split <- function(){
+    node$terminal <- FALSE
+    is.lo <- node$best[, X.mat[indices,feature] < split.point]
+    logical.list <- list(lo=is.lo, hi=!is.lo)
+    for(child.name in names(logical.list)){
+      is.child <- logical.list[[child.name]]
+      child.indices <- indices[is.child]
+      node[[child.name]] <- new_node(child.indices)
+    }
+    c(node$lo, node$hi)
+  }
+  node$expr <- function(){
+    if(node$terminal)node$pred
+    else substitute(
+      ifelse(X[,FEAT]<VAL, LO, HI), with(node$best, list(
+        FEAT=feature, VAL=split.point,
+        LO=node$lo$expr(),
+        HI=node$hi$expr())))
+  }
+  node$predict <- function(X){
+    eval(node$expr())
+  }
+  node
+}
+
+grid.vec <- seq(0,1,by=0.05)
+grid.dt <- CJ(V1=grid.vec,V2=grid.vec)
+grid.mat <- as.matrix(grid.dt)
+
+dtree <- new_node(1:N.row)
+term.list <- list(dtree)
+grid.pred.list <- list()
+grid.pred.list[["0"]] <- data.table(
+  iteration=0,
+  grid.dt,
+  pred = dtree$predict(grid.mat))
+for(iteration in 1:5){
+  (term.best <- data.table(
+    node.i=seq_along(term.list)
+  )[
+  , term.list[[node.i]]$best
+  , by=node.i])
+  split.i <- term.best[which.min(loss.split-loss.constant), node.i]
+  term.list <- c(term.list[-split.i], term.list[[split.i]]$split())
+  grid.pred.list[[paste(iteration)]] <- data.table(
+    iteration,
+    grid.dt,
+    pred = dtree$predict(grid.mat))
+}
+(grid.pred <- rbindlist(grid.pred.list))
+
+ggplot()+
+  facet_grid(. ~ iteration, labeller=label_both)+
+  geom_tile(aes(
+    V1, V2, fill=pred),
+    data=grid.pred)+
+  geom_point(aes(
+    V1, V2, fill=y),
+    shape=21,
+    data=xy.dt)+
+  scale_fill_gradient(low="white",high="black")+
+  coord_equal()
+
+
+
+viz.dt <- data.table(
+  node.i=seq_along(term.list)
+)[
+, term.list[[node.i]]$loss
+, by=node.i]
 ggplot()+
   geom_point(aes(
-    split.index, loss.split),
+    split.index, loss.split-loss.constant),
     shape=1,
-    data=split.loss)+
-  facet_grid(. ~ feature)
+    data=viz.dt)+
+  facet_grid(. ~ node.i + feature, labeller=label_both)
+
 ggplot()+
   geom_point(aes(
-    split.point, loss.split),
+    split.point, loss.split-loss.constant),
     shape=1,
-    data=split.loss)+
-  facet_grid(. ~ feature)
-best.loss <- split.loss[which.min(loss.split)]
+    data=viz.dt)+
+  facet_grid(. ~ node.i + feature, labeller=label_both)
+
+
+node.loss.list <- list()
+for(node.i in seq_along(index.list)){
+  node.i.loss <- candidate_loss(index.list[[node.i]])
+  node.loss.list[[node.i]] <- data.table(node.i, node.i.loss)
+}
+(node.loss <- rbindlist(node.loss.list))
 
 ```
 
