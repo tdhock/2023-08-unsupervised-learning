@@ -21,11 +21,12 @@ theme_set(my.theme)
 # TODO
 
 ```{r}
-N.col <- 4
+N.col <- 5
 N.row <- 200
 set.seed(1)
 X.mat <- matrix(runif(N.col*N.row), N.row, N.col)
-hidden <- X.mat[,1]<0.6 & X.mat[,2]<0.7
+hidden <- (X.mat[,1]<0.4 & X.mat[,2]<0.5) |
+  (X.mat[,1] > 0.7 & X.mat[,3] > 0.4)
 y.vec <- ifelse(hidden-0.5+rnorm(N.row,sd=0.5) < 0, 0, 1)
 table(y.vec, hidden)
 library(ggplot2)
@@ -33,14 +34,73 @@ library(data.table)
 xy.dt <- data.table(y=y.vec, X.mat)
 ggplot()+
   geom_point(aes(
-    V1, V2, color=factor(y)),
-    data=xy.dt)
+    V1, V2, fill=factor(y)),
+    shape=21,
+    data=xy.dt)+
+  scale_fill_manual(values=c(
+    "0"="white",
+    "1"="black"))+
+  coord_equal()
+
 ggplot()+
   geom_point(aes(
-    V3, V4, color=factor(y)),
+    V1, V3, color=factor(y)),
     data=xy.dt)
-TODO tree as env
-cumsum
+
+ggplot()+
+  geom_point(aes(
+    V4, V5, color=factor(y)),
+    data=xy.dt)
+
+candidate_loss <- function(indices){
+  split.loss.list <- list()
+  for(feature in 1:N.col){
+    x.vec <- X.mat[,feature]
+    ord.indices <- order(x.vec)
+    x.ord <- x.vec[ord.indices]
+    y.cum <- c(0,cumsum(y.vec[ord.indices]))
+    Loss <- function(first,last){
+      num.data <- last-first+1
+      num.pos <- y.cum[last+1]-y.cum[first]
+      num.neg <- num.data-num.pos
+      prob.pos <- num.pos/num.data
+      prob.neg <- 1-prob.pos
+      ll <- function(num,prob)ifelse(num, num*log(prob), 0)
+      -ll(num.pos,prob.pos)-ll(num.neg,prob.neg)
+    }
+    before.start <- 1
+    after.end <- length(ord.indices)
+    after.start <- seq(2, after.end)
+    before.end <- after.start-1
+    split.point <- x.ord[-1]-diff(x.ord)/2
+    loss.split <- Loss(before.start, before.end)+Loss(after.start, after.end)
+    loss.constant <- Loss(before.start, after.end)
+    split.loss.list[[feature]] <- data.table(
+      feature,
+      split.index=seq_along(split.point), split.point,
+      loss.split,
+      loss.constant)
+  }
+  rbindlist(split.loss.list)
+}
+
+dtree <- new.env()
+dtree$indices <- 1:N.row
+split.loss <- candidate_loss(dtree$indices)
+ggplot()+
+  geom_point(aes(
+    split.index, loss.split),
+    shape=1,
+    data=split.loss)+
+  facet_grid(. ~ feature)
+ggplot()+
+  geom_point(aes(
+    split.point, loss.split),
+    shape=1,
+    data=split.loss)+
+  facet_grid(. ~ feature)
+best.loss <- split.loss[which.min(loss.split)]
+
 ```
 
 # Learning algorithm
