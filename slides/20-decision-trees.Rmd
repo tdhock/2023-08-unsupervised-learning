@@ -23,7 +23,7 @@ theme_set(my.theme)
 ```{r}
 N.col <- 2
 N.row <- 200
-set.seed(1)
+set.seed(2)
 X.mat <- matrix(runif(N.col*N.row), N.row, N.col)
 hidden <- (X.mat[,1]<0.4 & X.mat[,2]<0.5) |
   (X.mat[,1] > 0.7 & X.mat[,2] > 0.4)
@@ -42,16 +42,6 @@ ggplot()+
     "0"="white",
     "1"="black"))+
   coord_equal()
-
-ggplot()+
-  geom_point(aes(
-    V1, V3, color=factor(y)),
-    data=xy.dt)
-
-ggplot()+
-  geom_point(aes(
-    V4, V5, color=factor(y)),
-    data=xy.dt)
 
 candidate_loss <- function(indices){
   split.loss.list <- list()
@@ -86,8 +76,13 @@ candidate_loss <- function(indices){
   rbindlist(split.loss.list)
 }
 
-new_node <- function(indices){
+new_node <- function(indices,depth=0L,parent=NULL){
   node <- new.env()
+  node$id <- next.node.id
+  node$parent <- parent
+  node.list[[next.node.id]] <<- node
+  next.node.id <<- next.node.id + 1L
+  node$depth <- depth
   node$indices <- indices
   node$pred <- mean(y.vec[indices])
   node$loss <- candidate_loss(indices)
@@ -100,9 +95,17 @@ new_node <- function(indices){
     for(child.name in names(logical.list)){
       is.child <- logical.list[[child.name]]
       child.indices <- indices[is.child]
-      node[[child.name]] <- new_node(child.indices)
+      node[[child.name]] <- new_node(child.indices,node$depth+1L,node)
     }
     c(node$lo, node$hi)
+  }
+  node$label_dt <- function(){
+    data.table(
+      terminal=node$terminal,
+      prob1=node$pred,
+      N=length(node$indices),
+      feature=node$best$feature,
+      split.point=node$best$split.point)
   }
   node$expr <- function(){
     if(node$terminal)node$pred
@@ -121,42 +124,50 @@ new_node <- function(indices){
 grid.vec <- seq(0,1,by=0.05)
 grid.dt <- CJ(V1=grid.vec,V2=grid.vec)
 grid.mat <- as.matrix(grid.dt)
-
+node.list <- list()
+next.node.id <- 1L
 dtree <- new_node(1:N.row)
 term.list <- list(dtree)
 grid.pred.list <- list()
-grid.pred.list[["0"]] <- data.table(
-  iteration=0,
-  grid.dt,
-  pred = dtree$predict(grid.mat))
-for(iteration in 1:6){
-  (term.best <- data.table(
-    node.i=seq_along(term.list)
-  )[
-  , term.list[[node.i]]$best
-  , by=node.i])
-  split.i <- term.best[which.min(loss.split-loss.constant), node.i]
-  term.list <- c(term.list[-split.i], term.list[[split.i]]$split())
+train.pred.list <- list()
+for(iteration in 0:9){
+  if(iteration>0){
+    (term.best <- data.table(
+      node.i=seq_along(term.list)
+    )[
+    , term.list[[node.i]]$best
+    , by=node.i])
+    split.i <- term.best[which.min(loss.split-loss.constant), node.i]
+    term.list <- c(term.list[-split.i], term.list[[split.i]]$split())
+  }
+  pred.prob <- dtree$predict(X.mat)
+  train.pred.list[[paste(iteration)]] <- data.table(
+    iteration,
+    xy.dt,
+    pred.prob,
+    pred.class=ifelse(pred.prob<0.5, 0, 1)
+  )[, correct := pred.class == y]
   grid.pred.list[[paste(iteration)]] <- data.table(
     iteration,
     grid.dt,
     pred = dtree$predict(grid.mat))
 }
 (grid.pred <- rbindlist(grid.pred.list))
-
+(train.pred <- rbindlist(train.pred.list))
 ggplot()+
-  facet_grid(. ~ iteration, labeller=label_both)+
+  facet_wrap(. ~ iteration, labeller=label_both,nrow=2)+
   geom_tile(aes(
     V1, V2, fill=pred),
     data=grid.pred)+
   geom_point(aes(
-    V1, V2, fill=y),
+    V1, V2, fill=y, color=correct),
     shape=21,
-    data=xy.dt)+
+    data=train.pred)+
+  scale_color_manual(values=c("TRUE"="white","FALSE"="black"))+
   scale_fill_gradient2(low="blue",high="red",midpoint=0.5)+
+  scale_x_continuous(breaks=seq(0,1,by=0.2))+
+  scale_y_continuous(breaks=seq(0,1,by=0.2))+
   coord_equal()
-
-
 
 viz.dt <- data.table(
   node.i=seq_along(term.list)
@@ -168,7 +179,7 @@ ggplot()+
     split.index, loss.split-loss.constant),
     shape=1,
     data=viz.dt)+
-  facet_grid(. ~ node.i + feature, labeller=label_both)
+  facet_grid(. ~ node.i + feature, labeller=label_both, scales="free")
 
 ggplot()+
   geom_point(aes(
@@ -177,13 +188,70 @@ ggplot()+
     data=viz.dt)+
   facet_grid(. ~ node.i + feature, labeller=label_both)
 
-
-node.loss.list <- list()
-for(node.i in seq_along(index.list)){
-  node.i.loss <- candidate_loss(index.list[[node.i]])
-  node.loss.list[[node.i]] <- data.table(node.i, node.i.loss)
+(node.parent.dt <- rbindlist(lapply(node.list, with, data.table(
+  id, depth, parent=if(is.null(parent))NA_integer_ else parent$id,
+  label_dt()
+))))
+tree_layout <- function(node.dt, space=0.5){
+  x <- id <- depth <- J <- parent.x <- size <-
+    parent.depth <- parent <- NULL
+  id.tab <- table(node.dt$id)
+  stopifnot(all(id.tab==1))
+  tree.dt <- data.table(node.dt)
+  tree.dt[, x := NA_real_]
+  setkey(tree.dt, id)
+  for(d in unique(tree.dt$depth)){
+    if(d==0)tree.dt[depth==0, x := 0] else{
+      d.nodes <- tree.dt[depth==d]
+      px <- tree.dt[J(d.nodes$parent), x, nomatch=0L]
+      d.nodes[, parent.x := px]
+      ord.nodes <- d.nodes[order(parent.x)]
+      new.x <- ord.nodes[, qp.x(parent.x,parent.x+space,parent.x-space)]
+      tree.dt[J(ord.nodes$id), x := new.x]
+    }
+  }
+  px <- tree.dt[J(tree.dt$parent), x]
+  tree.dt[
+  , parent.x := px
+  ][
+  , parent.depth := ifelse(is.na(parent), NA, depth-1)
+  ][]
 }
-(node.loss <- rbindlist(node.loss.list))
+qp.x <- function
+### Solve quadratic program to find x positions.
+(target, y.up, y.lo){
+  k <- length(target)
+  D <- diag(rep(1, k))
+  Ik <- diag(rep(1, k - 1))
+  A <- rbind(0, Ik) - rbind(Ik, 0)
+  b0 <- (y.up - target)[-k] + (target - y.lo)[-1]
+  sol <- quadprog::solve.QP(D, target, A, b0)
+  sol$solution
+}
+(node.layout.dt <- tree_layout(
+  node.parent.dt
+)[
+, label := ifelse(
+  terminal,
+  sprintf("p=%.2f\nN=%d", prob1, N),
+  sprintf("X%d<%.2f", feature, split.point)
+)][])
+
+    
+ggplot()+
+  geom_segment(aes(
+    x, depth, 
+    xend=parent.x, yend=parent.depth),
+    data=node.layout.dt)+
+  scale_fill_gradient2(
+    "Prob(y=1)",
+    low="deepskyblue",high="red",midpoint=0.5,
+    na.value="grey")+
+  geom_label(aes(
+    x, depth, label=label, fill=ifelse(terminal, prob1, NA)),
+    data=node.layout.dt)+
+  scale_y_reverse()
+
 
 ```
 
