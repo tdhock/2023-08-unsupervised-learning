@@ -39,24 +39,26 @@ candidate_loss <- function(indices){
     }
     before.start <- 1
     after.end <- length(ord.indices)
-    after.start <- seq(2, after.end)
+    after.start <- seq(min.data.per.node+1, after.end-min.data.per.node+1)
     before.end <- after.start-1
-    split.point <- x.ord[-1]-diff(x.ord)/2
+    data.before <- x.ord[before.end]
+    data.after <- x.ord[after.start]
     loss.split <- Loss(before.start, before.end)+Loss(after.start, after.end)
     loss.constant <- Loss(before.start, after.end)
     split.loss.list[[feature]] <- data.table(
       feature,
-      split.index=seq_along(split.point), 
-      data.before=x.ord[-length(x.ord)],
-      split.point,
-      data.after=x.ord[-1],
+      data.before,
+      split.point=(data.before+data.after)/2,
+      data.after,
       loss.split,
       loss.constant,
       loss.diff=loss.split-loss.constant)
   }
-  rbindlist(split.loss.list)
+  rbindlist(split.loss.list)[
+  , is.min := loss.split == min(loss.split)
+  ][]
 }
-
+min.data.per.node <- 5
 new_node <- function(indices,parent=NULL,node.type="root"){
   node <- new.env()
   if(node.type=="root"){
@@ -78,27 +80,45 @@ new_node <- function(indices,parent=NULL,node.type="root"){
   node$depth <- if(is.null(parent))0L else parent$depth+1L
   node$indices <- indices
   node$pred <- mean(y.vec[indices])
-  node$loss <- candidate_loss(indices)
-  node$best <- node$loss[which.min(loss.split)]
+  if((#only compute loss if possible to split later.
+    ! node$pred %in% c(0,1)    
+  )&&(
+    length(indices) >= min.data.per.node*2
+  )){
+    node$loss <- candidate_loss(indices)
+    i.vec.min <- which(node$loss$is.min==TRUE)
+    i.selected <- i.vec.min[1]
+    node$loss[
+    , loss.status := ifelse(is.min, "optimal", "sub-optimal")
+    ][i.selected, loss.status := "can_split"]
+    node$best <- node$loss[i.selected]
+  }else{
+    node$loss <- node$best <- NULL
+  }
   node$terminal <- TRUE
   node$split <- function(){
     node$terminal <- FALSE
     is.lo <- node$best[, X.mat[indices,feature] < split.point]
     logical.list <- list(lo=is.lo, hi=!is.lo)
+    out.list <- list()
     for(child.name in names(logical.list)){
       is.child <- logical.list[[child.name]]
       child.indices <- indices[is.child]
       node[[child.name]] <- new_node(child.indices,node,child.name)
+      if(is.data.table(node[[child.name]]$best)){
+        out.list[[child.name]] <- node[[child.name]]
+      }
     }
-    c(node$lo, node$hi)
+    out.list
   }
   node$label_dt <- function(){
     data.table(
       terminal=node$terminal,
       prob1=node$pred,
       N=length(node$indices),
-      feature=node$best$feature,
-      split.point=node$best$split.point)
+      feature=if(is.data.table(node$best))node$best$feature else NA,
+      optimal=if(is.data.table(node$loss))sum(node$loss[, loss.constant!=0 & loss.status=="optimal"]) else 0,
+      split.point=if(is.data.table(node$best))node$best$split.point else NA)
   }
   node$expr <- function(){
     if(node$terminal)node$pred
@@ -114,13 +134,9 @@ new_node <- function(indices,parent=NULL,node.type="root"){
   node
 }
 tree_layout <- function(node.dt, space=0.5){
-  x <- id <- depth <- J <- parent.x <- size <-
-    parent.depth <- parent <- NULL
   id.tab <- table(node.dt$id)
   stopifnot(all(id.tab==1))
-  tree.dt <- data.table(node.dt)
-  tree.dt[, x := NA_real_]
-  setkey(tree.dt, id)
+  tree.dt <- data.table(node.dt, key="id")[, x := NA_real_]
   for(d in unique(tree.dt$depth)){
     if(d==0)tree.dt[depth==0, x := 0] else{
       d.nodes <- tree.dt[depth==d]
@@ -132,11 +148,10 @@ tree_layout <- function(node.dt, space=0.5){
     }
   }
   px <- tree.dt[J(tree.dt$parent), x]
-  tree.dt[
-  , parent.x := px
-  ][
-  , parent.depth := ifelse(is.na(parent), NA, depth-1)
-  ][]
+  tree.dt[, let(
+    parent.x = px,
+    parent.depth = ifelse(is.na(parent), NA, depth-1)
+  )][]
 }
 qp.x <- function
 ### Solve quadratic program to find x positions.
@@ -154,7 +169,7 @@ node.list <- list()
 next.node.id <- 1L
 dtree <- new_node(1:N.row)
 current.loss <- dtree$best$loss.constant
-term.list <- list(dtree)
+can.split.list <- list(dtree)
 rect.pred.list <- list()
 train.pred.list <- list()
 node.layout.list <- list()
@@ -177,8 +192,7 @@ for(iteration in 0:9){
     iteration,
     loss=current.loss,
     train.log.loss=sum(train.pred.it$log.loss),
-    nodes=length(node.list),
-    leaves=length(term.list))
+    nodes=length(node.list))
   train.pred.list[[paste(iteration)]] <- train.pred.it
   rect.pred.list[[paste(iteration)]] <- rbindlist(lapply(
     node.list, with, data.table(iteration, bounds, id, pred, terminal)))
@@ -194,17 +208,15 @@ for(iteration in 0:9){
     sprintf("p=%.2f", prob1),
     sprintf("X%d<%.2f", feature, split.point)
   )][]
+  (can.split.best <- rbindlist(lapply(can.split.list, with, best)))
+  split.i <- can.split.best[,which.min(loss.diff)]
+  can.split.list[[split.i]]$loss[
+    loss.status == "can_split",
+    loss.status := "chosen_split"]
   candidate.dt.list[[paste(iteration)]] <- rbindlist(lapply(
-    term.list, with, data.table(iteration, id, loss)))
-  (term.best <- data.table(
-    node.i=seq_along(term.list)
-  )[
-  , term.list[[node.i]]$best
-  , by=node.i])
-  best.row <- term.best[which.min(loss.diff)]
-  current.loss <- current.loss+best.row$loss.diff
-  split.i <- best.row$node.i
-  term.list <- c(term.list[-split.i], term.list[[split.i]]$split())
+    can.split.list, with, data.table(iteration, id, loss)))
+  current.loss <- current.loss+can.split.best[split.i,loss.diff]
+  can.split.list <- c(can.split.list[-split.i], can.split.list[[split.i]]$split())
 }
 (tree.info <- rbindlist(tree.info.list))
 tree.info[, all.equal(loss, train.log.loss)]
@@ -249,7 +261,10 @@ ggplot()+
 rect.w <- 0.5
 rect.h <- 0.3
 node.layout[, Node := id]
-candidate.dt[, Split := sprintf("X%d<%f", feature, split.point)][]
+candidate.dt[, let(
+  Node = id,
+  Split = sprintf("X%d<%f", feature, split.point)
+)][]
 last.pred <- rect.pred[
 , Node := id
 ][iteration==max(iteration), .(Node,id,V1min,V1max,V2min,V2max)]
@@ -261,14 +276,14 @@ cand.join <- candidate.dt[
   y=ifelse(feature==1, V2min, split.point),
   yend=ifelse(feature==1, V2max, split.point)
 )][]
-best.hilite <- candidate.dt[
-, .SD[which.min(loss.diff)]
-, by=iteration]
-best.layout <- node.layout[
-  best.hilite[, .(iteration,Node)],
+(chosen.hilite <- candidate.dt[loss.status=="chosen_split"])
+chosen.layout <- node.layout[
+  chosen.hilite[, .(iteration,Node)],
   on=.(iteration,Node)]
-best.color <- "green"
-best.size <- 4
+## > RColorBrewer::brewer.pal(3,"Set1")
+## [1] "#E41A1C" "#377EB8" "#4DAF4A"
+chosen.color <- "#4DAF4A"#"green"
+chosen.size <- 5
 viz <- animint(
   title="Greedy decision tree learning algorithm for binary classification (Breiman's CART)",
   source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-trees.R",
@@ -306,13 +321,15 @@ viz <- animint(
     geom_point(aes(
       x-rect.w*0.8, depth,
       key=1),
-      data=best.layout,
-      fill=best.color,
-      size=best.size,
+      data=chosen.layout,
+      fill=chosen.color,
+      size=chosen.size,
       color="black",
       showSelected="iteration")+
     geom_text(aes(
-      x, depth+0.2, label=label,
+      x, depth+0.2, label=paste0(
+        ifelse(optimal==0, "", "*"),
+        label),
       key=id),
       showSelected="iteration",
       data=node.layout)+
@@ -377,6 +394,7 @@ viz <- animint(
     coord_equal(),
   candidates=ggplot()+
     ggtitle("Loss decrease for selected iteration; select Node and Split")+
+    theme_bw()+
     theme_animint(width=1200)+
     facet_grid(. ~ Feature, labeller=label_both)+
     scale_x_continuous(
@@ -384,17 +402,40 @@ viz <- animint(
     geom_hline(aes(
       yintercept=loss.diff,
       key=1),
-      data=best.hilite[,.(iteration,loss.diff)],
-      color=best.color,
+      data=chosen.hilite[,.(iteration,loss.diff)],
+      color=chosen.color,
       showSelected="iteration")+
+    geom_text(aes(
+      split.point, loss.diff-3,
+      hjust=ifelse(split.point<0.5, 0, 1),
+      label=sprintf("_Diff=%.4f_", loss.diff),
+      key=1),
+      data=chosen.hilite,
+      color=chosen.color,
+      showSelected="iteration")+
+    geom_text(aes(
+      split.point, -24,
+      hjust=ifelse(split.point<0.5, 0, 1),
+      label=sprintf("_Diff=%.4f_", loss.diff),
+      key=paste(id, split.point)),
+      data=candidate.dt,
+      showSelected=c("iteration","Node","Split"))+
     geom_tallrect(aes(
-      key=Split,
+      key=paste(id, split.point),
       xmin=data.before,
       xmax=data.after),
       data=candidate.dt,
       color=NA,
       alpha=0.5,
       clickSelects="Split",
+      showSelected=c("iteration","Node"))+
+    geom_segment(aes(
+      split.point, -Inf,
+      xend=split.point, yend=Inf,
+      key=paste(id, split.point)),
+      data=candidate.dt,
+      clickSelects="Split",
+      alpha=0.5,
       showSelected=c("iteration","Node"))+
     geom_line(aes(
       split.point, loss.diff,
@@ -403,24 +444,34 @@ viz <- animint(
       size=3,
       alpha=1,
       alpha_off=0.2,
-      data=candidate.dt[, Node := id],
+      data=candidate.dt,
       showSelected="iteration",
       clickSelects="Node")+
+    ## geom_point(aes(
+    ##   split.point, loss.diff,
+    ##   key=1),
+    ##   data=chosen.hilite,
+    ##   fill=chosen.color,
+    ##   color="black",
+    ##   size=chosen.size,
+    ##   showSelected="iteration")+
+    scale_fill_manual(values=c(
+      "sub-optimal"="transparent",
+      chosen_split=chosen.color,
+      optimal="green",
+      can_split="orange"))+
     geom_point(aes(
       split.point, loss.diff,
+      fill=loss.status,
       key=paste(id, split.point)),
       size=3,
-      fill="white",
-      data=candidate.dt[, Node := id],
-      showSelected=c("iteration","Node"))+
-    geom_point(aes(
-      split.point, loss.diff,
-      key=1),
-      data=best.hilite,
-      fill=best.color,
+      data=candidate.dt,
+      alpha=1,
+      alpha_off=1,
       color="black",
-      size=best.size,
-      showSelected="iteration"),
+      color_off="transparent",
+      clickSelects="Split",
+      showSelected=c("iteration","Node")),
   duration=list(
     iteration=2000),
   out.dir="20-decision-trees"
@@ -455,3 +506,6 @@ if(FALSE){
 
 ## in candidates plot, add details for each candidate split point: how
 ## many data/pos/neg before/after split?
+
+## in candidates plot, add geom_point and geom_segment for each split
+## point, with clickSelects="Split" (in addition to geom_tallrect).
