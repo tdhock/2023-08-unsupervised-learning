@@ -314,7 +314,12 @@ viz <- animint(
       data=prune.cost)+
     scale_x_continuous("Terminal leaves", breaks=seq(1, max(tree.info$leaves), by=4))+
     scale_y_continuous("Total logistic loss")+
-    make_tallrect(tree.info, "iteration"),
+    geom_tallrect(aes(
+      xmin=leaves-0.5,
+      xmax=leaves+0.5),
+      data=tree.info,
+      alpha=0.5,
+      clickSelects="iteration"),
   features=ggplot()+
     ggtitle("Decisions at selected iteration")+
     geom_rect(aes(
