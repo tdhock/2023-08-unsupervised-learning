@@ -1,30 +1,16 @@
-N.col <- 2
-N.row <- 200
-set.seed(2)
-X.mat <- matrix(runif(N.col*N.row), N.row, N.col)
-hidden <- (X.mat[,1]<0.4 & X.mat[,2]<0.5) |
-  (X.mat[,1] > 0.7 & X.mat[,2] > 0.4)
-y.vec <- ifelse(hidden-0.5+rnorm(N.row,sd=0.5) < 0, 0, 1)
-table(y.vec, hidden)
 library(animint2)
 library(data.table)
-
-xy.dt <- data.table(y=y.vec, X.mat)
-ggplot()+
-  geom_point(aes(
-    V1, V2, fill=factor(y)),
-    shape=21,
-    data=xy.dt)+
-  scale_fill_manual(values=c(
-    "0"="white",
-    "1"="black"))+
-  coord_equal()
+spam.dt <- fread("~/teaching/2023-08-deep-learning/data/spam.data")
+y.col <- ncol(spam.dt)
+X.mat <- as.matrix(spam.dt[,-y.col,with=FALSE])
+y.vec <- spam.dt[[y.col]]
 
 candidate_loss <- function(indices){
   split.loss.list <- list()
   y.sub <- y.vec[indices]
-  for(feature in 1:N.col){
+  for(feature in 1:ncol(X.mat)){
     x.sub <- X.mat[indices,feature]
+    ## TODO x.sub may have same values, need to add unique.
     ord.indices <- order(x.sub)
     x.ord <- x.sub[ord.indices]
     y.cum <- c(0,cumsum(y.sub[ord.indices]))
@@ -58,9 +44,10 @@ candidate_loss <- function(indices){
   , is.min := loss.split == min(loss.split)
   ][]
 }
-min.data.per.node <- 5
+min.data.per.node <- 1
 new_node <- function(indices,parent=NULL,node.type="root"){
   node <- new.env()
+  node$lo <- node$hi <- NULL
   if(node.type=="root"){
     node$bounds <- data.table(
       V1min=0,V1max=1,
@@ -167,19 +154,19 @@ qp.x <- function
 
 node.list <- list()
 next.node.id <- 1L
-dtree <- new_node(1:N.row)
+dtree <- new_node(seq_along(y.vec))
 current.loss <- dtree$best$loss.constant
 can.split.list <- list(dtree)
-rect.pred.list <- list()
-train.pred.list <- list()
 node.layout.list <- list()
 tree.info.list <- list()
 candidate.dt.list <- list()
-for(iteration in 0:9){
+iteration <- 0
+done <- FALSE
+while(!done){
   (train.pred.it <- data.table(
     iteration,
-    row_id=1:nrow(xy.dt),
-    xy.dt,
+    row_id=1:nrow(spam.dt),
+    y=y.vec,
     pred.prob1=dtree$predict(X.mat)
   )[, let(
     pred.class = ifelse(pred.prob1<0.5, 0, 1),
@@ -193,9 +180,6 @@ for(iteration in 0:9){
     loss=current.loss,
     train.log.loss=sum(train.pred.it$log.loss),
     nodes=length(node.list))
-  train.pred.list[[paste(iteration)]] <- train.pred.it
-  rect.pred.list[[paste(iteration)]] <- rbindlist(lapply(
-    node.list, with, data.table(iteration, bounds, id, pred, terminal)))
   (node.parent.dt <- rbindlist(lapply(node.list, with, data.table(
     id, depth, parent=if(is.null(parent))NA_integer_ else parent$id,
     label_dt(), iteration
@@ -208,16 +192,28 @@ for(iteration in 0:9){
     sprintf("p=%.2f", prob1),
     sprintf("X%d<%.2f", feature, split.point)
   )][]
-  (can.split.best <- rbindlist(lapply(can.split.list, with, best)))
-  split.i <- can.split.best[,which.min(loss.diff)]
-  can.split.list[[split.i]]$loss[
-    loss.status == "can_split",
-    loss.status := "chosen_split"]
-  candidate.dt.list[[paste(iteration)]] <- rbindlist(lapply(
-    can.split.list, with, data.table(iteration, id, loss)))
-  current.loss <- current.loss+can.split.best[split.i,loss.diff]
-  can.split.list <- c(can.split.list[-split.i], can.split.list[[split.i]]$split())
+  if(length(can.split.list)==0 || iteration==20){
+    done <- TRUE
+  }else{
+    (can.split.best <- rbindlist(lapply(can.split.list, with, best)))
+    split.i <- can.split.best[,which.min(loss.diff)]
+    can.split.list[[split.i]]$loss[
+      loss.status == "can_split",
+      loss.status := "chosen_split"]
+    candidate.dt.list[[paste(iteration)]] <- rbindlist(lapply(
+      can.split.list, with, data.table(iteration, id, loss)))
+    current.loss <- current.loss+can.split.best[split.i,loss.diff]
+    can.split.list <- c(can.split.list[-split.i], can.split.list[[split.i]]$split())
+    stop(1)
+    lapply(node.list, with, length(indices))
+    node.list[[1]]$best
+    print(iteration <- iteration+1)
+  }
 }
+
+initial.prune.dt <- rbindlist(lapply(node.list, with, data.table(
+  id, can_prune=isTRUE(lo$terminal)&&isTRUE(hi$terminal))))
+
 (tree.info <- rbindlist(tree.info.list))
 tree.info[, all.equal(loss, train.log.loss)]
 (rect.pred <- rbindlist(rect.pred.list))
@@ -226,37 +222,6 @@ tree.info[, all.equal(loss, train.log.loss)]
 (candidate.dt <- rbindlist(candidate.dt.list)[
 , Feature := paste0("X",feature)
 ])
-ggplot()+
-  facet_wrap("iteration", labeller=label_both,nrow=2)+
-  geom_rect(aes(
-    xmin=V1min, xmax=V1max,
-    ymin=V2min, ymax=V2max,
-    fill=pred),
-    data=rect.pred)+
-  geom_point(aes(
-    V1, V2, fill=y, color=correct),
-    shape=21,
-    data=train.pred)+
-  scale_color_manual(values=c("TRUE"="white","FALSE"="black"))+
-  scale_fill_gradient2(low="blue",high="red",midpoint=0.5)+
-  scale_x_continuous(breaks=seq(0,1,by=0.2))+
-  scale_y_continuous(breaks=seq(0,1,by=0.2))+
-  coord_equal()
-
-ggplot()+
-  facet_wrap("iteration", labeller=label_both,nrow=2)+
-  geom_segment(aes(
-    x, depth, 
-    xend=parent.x, yend=parent.depth),
-    data=node.layout)+
-  scale_fill_gradient2(
-    "Prob(y=1)",
-    low="deepskyblue",high="red",midpoint=0.5,
-    na.value="grey")+
-  geom_label(aes(
-    x, depth, label=label, fill=ifelse(terminal, prob1, NA)),
-    data=node.layout)+
-  scale_y_reverse()
 
 rect.w <- 0.5
 rect.h <- 0.3
@@ -284,71 +249,19 @@ chosen.layout <- node.layout[
 ## [1] "#E41A1C" "#377EB8" "#4DAF4A"
 chosen.color <- "#4DAF4A"#"green"
 chosen.size <- 5
+tree.text.size <- 10
 viz <- animint(
-  title="Greedy decision tree learning algorithm for binary classification (Breiman's CART)",
-  source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-trees.R",
+  title="Greedy decision tree learning with Breiman's Cost-Complexity Pruning",
+  source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-tree-pruned.R",
   loss=ggplot()+
     ggtitle("Select iteration")+
     theme_animint(width=300)+
     geom_point(aes(
       iteration, loss),
       data=tree.info)+
-    scale_x_continuous("Iteration/split", breaks=tree.info$iteration)+
+    scale_x_continuous("Iteration/split", breaks=seq(0, max(tree.info$iteration), by=4))+
     scale_y_continuous("Total logistic loss")+
     make_tallrect(tree.info, "iteration"),
-  tree=ggplot()+
-    ggtitle("Tree at selected iteration")+
-    scale_x_continuous("<-yes(feature<threshold), no(feature>=threshold)->", breaks=NULL)+
-    theme(legend.position="none")+
-    geom_segment(aes(
-      x, depth,
-      key=paste(id,parent),
-      xend=parent.x, yend=parent.depth),
-      showSelected="iteration",
-      data=node.layout)+
-    scale_fill_gradient2(
-      "Prob(y=1)",
-      low="deepskyblue",high="red",midpoint=0.5,
-      na.value="grey")+
-    geom_rect(aes(
-      xmin=x-rect.w, xmax=x+rect.w,
-      ymin=depth+rect.h, ymax=depth-rect.h,
-      key=id,
-      fill=ifelse(terminal, prob1, NA)),
-      showSelected="iteration",
-      color="transparent",
-      data=node.layout)+
-    geom_point(aes(
-      x-rect.w*0.8, depth,
-      key=1),
-      data=chosen.layout,
-      fill=chosen.color,
-      size=chosen.size,
-      color="black",
-      showSelected="iteration")+
-    geom_text(aes(
-      x, depth+0.2, label=paste0(
-        ifelse(optimal==0, "", "*"),
-        label),
-      key=id),
-      showSelected="iteration",
-      data=node.layout)+
-    geom_text(aes(
-      x, depth-0.05, label=paste0("N=",N),
-      key=id),
-      showSelected="iteration",
-      data=node.layout)+
-    geom_rect(aes(
-      xmin=x-rect.w, xmax=x+rect.w,
-      ymin=depth+rect.h, ymax=depth-rect.h,
-      key=id),
-      color="black",
-      fill="transparent",
-      showSelected="iteration",
-      color_off="transparent",
-      clickSelects="Node",
-      data=node.layout)+
-    scale_y_reverse(),
   features=ggplot()+
     ggtitle("Decisions at selected iteration")+
     geom_rect(aes(
@@ -392,10 +305,66 @@ viz <- animint(
       showSelected=c("iteration","Node"),
       clickSelects="Split")+
     coord_equal(),
+  tree=ggplot()+
+    ggtitle("Tree at selected iteration")+
+    scale_x_continuous("<-yes(feature<threshold), no(feature>=threshold)->", breaks=NULL)+
+    theme(legend.position="none")+
+    theme_animint(width=800)+
+    geom_segment(aes(
+      x, depth,
+      key=paste(id,parent),
+      xend=parent.x, yend=parent.depth),
+      showSelected="iteration",
+      data=node.layout)+
+    scale_fill_gradient2(
+      "Prob(y=1)",
+      low="deepskyblue",high="red",midpoint=0.5,
+      na.value="grey")+
+    geom_rect(aes(
+      xmin=x-rect.w, xmax=x+rect.w,
+      ymin=depth+rect.h, ymax=depth-rect.h,
+      key=id,
+      fill=ifelse(terminal, prob1, NA)),
+      showSelected="iteration",
+      color="transparent",
+      data=node.layout)+
+    geom_point(aes(
+      x-rect.w*0.8, depth,
+      key=1),
+      data=chosen.layout,
+      fill=chosen.color,
+      size=chosen.size,
+      color="black",
+      showSelected="iteration")+
+    geom_text(aes(
+      x, depth+0.2, label=paste0(
+        ifelse(optimal==0, "", "*"),
+        label),
+      key=id),
+      size=tree.text.size,
+      showSelected="iteration",
+      data=node.layout)+
+    geom_text(aes(
+      x, depth-0.05, label=paste0("N=",N),
+      key=id),
+      size=tree.text.size,
+      showSelected="iteration",
+      data=node.layout)+
+    geom_rect(aes(
+      xmin=x-rect.w, xmax=x+rect.w,
+      ymin=depth+rect.h, ymax=depth-rect.h,
+      key=id),
+      color="black",
+      fill="transparent",
+      showSelected="iteration",
+      color_off="transparent",
+      clickSelects="Node",
+      data=node.layout)+
+    scale_y_reverse(),
   candidates=ggplot()+
     ggtitle("Loss decrease for selected iteration; select Node and Split")+
     theme_bw()+
-    theme_animint(width=1100)+
+    theme_animint(width=1200)+
     facet_grid(. ~ Feature, labeller=label_both)+
     scale_x_continuous(
       "Threshold (split point)")+
@@ -474,12 +443,12 @@ viz <- animint(
       showSelected=c("iteration","Node")),
   duration=list(
     iteration=2000),
-  out.dir="20-decision-trees"
+  out.dir="20-decision-tree-pruned"
 )
 viz
 
 if(FALSE){
-  animint2pages(viz, "2024-11-23-greedy-decision-tree")
+  animint2pages(viz, "2024-11-24-decision-tree-pruned")
 }
 
 ## in feature plot, add aes(color=correct) to geom_point, by computing
