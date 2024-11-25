@@ -1,9 +1,34 @@
 library(animint2)
 library(data.table)
-spam.dt <- fread("~/teaching/2023-08-deep-learning/data/spam.data")
+if(!file.exists("spambase.zip")){
+  download.file("https://archive.ics.uci.edu/static/public/94/spambase.zip","spambase.zip")
+}
+if(!file.exists("spambase.names")){
+  unzip("spambase.zip")
+}
+(spam.names <- nc::capture_all_str(
+  "spambase.names",
+  "\n+",
+  name="[^\\|]+?",
+  ":"
+)[
+, abbrev := sub(".*_", "", name)
+][])
+spam.dt <- fread("spambase.data")
+setnames(spam.dt, c(spam.names$abbrev, "spam"))
+spam.dt[1]
+N.folds <- 2
+valid.fold <- 1
+set.seed(1)
+fold.vec <- spam.dt[, .(
+  fold=sample(rep(1:N.folds,l=.N))
+), by=spam]$fold
 y.col <- ncol(spam.dt)
 X.mat <- as.matrix(spam.dt[,-y.col,with=FALSE])
 y.vec <- spam.dt[[y.col]]
+table(y.vec, fold.vec)
+ord.mat <- apply(X.mat, 2, order)
+X.rle <- apply(X.mat, 2, function(x)rle(sort(x)))
 
 candidate_loss <- function(indices){
   split.loss.list <- list()
