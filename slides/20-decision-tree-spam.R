@@ -17,30 +17,34 @@ if(!file.exists("spambase.names")){
 spam.dt <- fread("spambase.data")
 setnames(spam.dt, c(spam.names$abbrev, "spam"))
 spam.dt[1]
-N.folds <- 2
+N.folds <- 10
 valid.fold <- 1
 set.seed(1)
 fold.vec <- spam.dt[, .(
   fold=sample(rep(1:N.folds,l=.N))
 ), by=spam]$fold
+is.subtrain <- fold.vec!=valid.fold
 y.col <- ncol(spam.dt)
 X.mat <- as.matrix(spam.dt[,-y.col,with=FALSE])
 y.vec <- spam.dt[[y.col]]
+X.subtrain <- X.mat[is.subtrain,]
+y.subtrain <- y.vec[is.subtrain]
 table(y.vec, fold.vec)
-ord.mat <- apply(X.mat, 2, order)
-X.rle <- apply(X.mat, 2, function(x)rle(sort(x)))
-
+N.features <- ncol(X.mat)
 candidate_loss <- function(indices){
   split.loss.list <- list()
-  y.sub <- y.vec[indices]
-  for(feature in 1:ncol(X.mat)){
-    x.sub <- X.mat[indices,feature]
-    ## TODO x.sub may have same values, need to add unique.
+  y.sub <- y.subtrain[indices]
+  for(feature in 1:N.features){
+    x.sub <- X.subtrain[indices,feature]
     ord.indices <- order(x.sub)
-    x.ord <- x.sub[ord.indices]
-    y.cum <- c(0,cumsum(y.sub[ord.indices]))
+    x.rle <- rle(x.sub[ord.indices])
+    cum.lengths <- cumsum(x.rle$lengths)
+    data.before <- x.rle$values[-length(x.rle$values)]
+    data.after <- x.rle$values[-1]
+    y.cum <- c(0,cumsum(y.sub[ord.indices])[cum.lengths])
+    N.cum <- c(0,cum.lengths)
     Loss <- function(first,last){
-      num.data <- last-first+1
+      num.data <- N.cum[last+1]-N.cum[first]
       num.pos <- y.cum[last+1]-y.cum[first]
       num.neg <- num.data-num.pos
       prob.pos <- num.pos/num.data
@@ -49,15 +53,15 @@ candidate_loss <- function(indices){
       -ll(num.pos,prob.pos)-ll(num.neg,prob.neg)
     }
     before.start <- 1
-    after.end <- length(ord.indices)
-    after.start <- seq(min.data.per.node+1, after.end-min.data.per.node+1)
+    after.end <- length(x.rle$values)
+    after.start <- seq(2, after.end)
     before.end <- after.start-1
-    data.before <- x.ord[before.end]
-    data.after <- x.ord[after.start]
     loss.split <- Loss(before.start, before.end)+Loss(after.start, after.end)
     loss.constant <- Loss(before.start, after.end)
     split.loss.list[[feature]] <- data.table(
       feature,
+      N.before=N.cum[before.end+1]-N.cum[before.start],
+      N.after=N.cum[after.end+1]-N.cum[after.start],
       data.before,
       split.point=(data.before+data.after)/2,
       data.after,
@@ -65,11 +69,9 @@ candidate_loss <- function(indices){
       loss.constant,
       loss.diff=loss.split-loss.constant)
   }
-  rbindlist(split.loss.list)[
-  , is.min := loss.split == min(loss.split)
-  ][]
+  rbindlist(split.loss.list)
 }
-min.data.per.node <- 1
+min.data.per.node <- 10
 new_node <- function(indices,parent=NULL,node.type="root"){
   node <- new.env()
   node$lo <- node$hi <- NULL
@@ -91,26 +93,25 @@ new_node <- function(indices,parent=NULL,node.type="root"){
   next.node.id <<- next.node.id + 1L
   node$depth <- if(is.null(parent))0L else parent$depth+1L
   node$indices <- indices
-  node$pred <- mean(y.vec[indices])
-  if((#only compute loss if possible to split later.
-    ! node$pred %in% c(0,1)    
-  )&&(
-    length(indices) >= min.data.per.node*2
-  )){
-    node$loss <- candidate_loss(indices)
-    i.vec.min <- which(node$loss$is.min==TRUE)
+  node$pred <- mean(y.subtrain[indices])
+  node$feasible <- candidate_loss(indices)[
+    N.before >= min.data.per.node & N.after >= min.data.per.node & loss.constant != 0
+  ]
+  node$best <- if(nrow(node$feasible)){
+    node$feasible[
+    , is.min := loss.split == min(loss.split)
+    ][]
+    i.vec.min <- which(node$feasible$is.min==TRUE)
     i.selected <- i.vec.min[1]
-    node$loss[
+    node$feasible[
     , loss.status := ifelse(is.min, "optimal", "sub-optimal")
     ][i.selected, loss.status := "can_split"]
-    node$best <- node$loss[i.selected]
-  }else{
-    node$loss <- node$best <- NULL
+    node$feasible[i.selected]
   }
   node$terminal <- TRUE
   node$split <- function(){
     node$terminal <- FALSE
-    is.lo <- node$best[, X.mat[indices,feature] < split.point]
+    is.lo <- node$best[, X.subtrain[indices,feature] < split.point]
     logical.list <- list(lo=is.lo, hi=!is.lo)
     out.list <- list()
     for(child.name in names(logical.list)){
@@ -129,7 +130,7 @@ new_node <- function(indices,parent=NULL,node.type="root"){
       prob1=node$pred,
       N=length(node$indices),
       feature=if(is.data.table(node$best))node$best$feature else NA,
-      optimal=if(is.data.table(node$loss))sum(node$loss[, loss.constant!=0 & loss.status=="optimal"]) else 0,
+      optimal=if(nrow(node$feasible))sum(node$feasible[, loss.constant!=0 & loss.status=="optimal"]) else 0,
       split.point=if(is.data.table(node$best))node$best$split.point else NA)
   }
   node$expr <- function(){
@@ -179,7 +180,7 @@ qp.x <- function
 
 node.list <- list()
 next.node.id <- 1L
-dtree <- new_node(seq_along(y.vec))
+dtree <- new_node(seq_along(y.subtrain))
 current.loss <- dtree$best$loss.constant
 can.split.list <- list(dtree)
 node.layout.list <- list()
@@ -191,6 +192,7 @@ while(!done){
   (train.pred.it <- data.table(
     iteration,
     row_id=1:nrow(spam.dt),
+    set.name=ifelse(is.subtrain, "subtrain", "validation"),
     y=y.vec,
     pred.prob1=dtree$predict(X.mat)
   )[, let(
@@ -200,10 +202,12 @@ while(!done){
     correct = pred.class == y,
     log.loss=-log(pred.prob.label)
   )][])
+  print(loss.long <- rbind(
+    data.table(set.name="diff", loss=current.loss),
+    train.pred.it[, .(loss=sum(log.loss)), by=set.name]))
   tree.info.list[[paste(iteration)]] <- data.table(
     iteration,
-    loss=current.loss,
-    train.log.loss=sum(train.pred.it$log.loss),
+    loss.long,
     nodes=length(node.list))
   (node.parent.dt <- rbindlist(lapply(node.list, with, data.table(
     id, depth, parent=if(is.null(parent))NA_integer_ else parent$id,
@@ -217,21 +221,23 @@ while(!done){
     sprintf("p=%.2f", prob1),
     sprintf("X%d<%.2f", feature, split.point)
   )][]
-  if(length(can.split.list)==0 || iteration==20){
+  if(
+    length(can.split.list)==0
+    ##|| iteration==20
+    || any(is.infinite(loss.long$loss))
+  ){
     done <- TRUE
   }else{
     (can.split.best <- rbindlist(lapply(can.split.list, with, best)))
     split.i <- can.split.best[,which.min(loss.diff)]
-    can.split.list[[split.i]]$loss[
+    can.split.list[[split.i]]$feasible[
       loss.status == "can_split",
       loss.status := "chosen_split"]
     candidate.dt.list[[paste(iteration)]] <- rbindlist(lapply(
-      can.split.list, with, data.table(iteration, id, loss)))
+      can.split.list, with, data.table(iteration, id, feasible)))
     current.loss <- current.loss+can.split.best[split.i,loss.diff]
     can.split.list <- c(can.split.list[-split.i], can.split.list[[split.i]]$split())
-    stop(1)
-    lapply(node.list, with, length(indices))
-    node.list[[1]]$best
+    print(unlist(lapply(node.list, with, length(indices))))
     print(iteration <- iteration+1)
   }
 }
@@ -240,9 +246,14 @@ initial.prune.dt <- rbindlist(lapply(node.list, with, data.table(
   id, can_prune=isTRUE(lo$terminal)&&isTRUE(hi$terminal))))
 
 (tree.info <- rbindlist(tree.info.list))
-tree.info[, all.equal(loss, train.log.loss)]
-(rect.pred <- rbindlist(rect.pred.list))
-(train.pred <- rbindlist(train.pred.list))
+tree.info.wide <- dcast(tree.info, iteration ~ set.name, value.var="loss")
+tree.info.wide[, all.equal(diff, subtrain)]
+
+ggplot()+
+  geom_line(aes(
+    iteration, loss, color=set.name),
+    data=tree.info)
+
 (node.layout <- rbindlist(node.layout.list))
 (candidate.dt <- rbindlist(candidate.dt.list)[
 , Feature := paste0("X",feature)
