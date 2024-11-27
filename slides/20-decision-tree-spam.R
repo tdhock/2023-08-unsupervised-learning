@@ -256,12 +256,15 @@ initial.prune.dt <- rbindlist(lapply(node.list, with, data.table(
   id, can_prune=isTRUE(lo$terminal)&&isTRUE(hi$terminal))))
 can.prune.list <- node.list[initial.prune.dt[can_prune==TRUE]$id]
 prune.cost.list <- tree.info.list[length(tree.info.list)]
+chosen.hilite.prune.list <- list()
 while(length(can.prune.list)){
-  iteration <- iteration+1
-  current.leaves <- current.leaves-1
   can.prune.dt <- rbindlist(lapply(can.prune.list, with, data.table(id, best)))
   prune.i <- can.prune.dt[,which.max(loss.diff)]
   parent_of_pruned <- can.prune.list[[prune.i]]
+  chosen.hilite.prune.list[[paste(iteration)]] <- data.table(
+    iteration, Node=parent_of_pruned$id)
+  iteration <- iteration+1
+  current.leaves <- current.leaves-1
   node.list[parent_of_pruned$lo$id] <- list(NULL)
   node.list[parent_of_pruned$hi$id] <- list(NULL)
   can.prune.list <- c(
@@ -301,9 +304,9 @@ both.selection <- both.cost[
   by=pass]
 both.points <- both.cost[both.selection[,.(pass,leaves)], on=.(pass,leaves)]
 (both.join <- both.selection[
- ,.(pass,leaves,min.log.lambda,max.log.lambda)
+,.(pass,leaves,min.log.lambda,max.log.lambda)
 ][
-  both.cost, on=.(pass,leaves)
+  both.cost[pass=="pruning"], on=.(pass,leaves)
 ][
 , selected := !is.na(min.log.lambda)
 ][])
@@ -391,9 +394,11 @@ candidate.dt[, let(
   Node = id,
   Split = sprintf("X%d<%f", feature, split.point)
 )][]
-(chosen.hilite <- candidate.dt[loss.status=="chosen_split"])
+(chosen.hilite <- rbind(
+  candidate.dt[loss.status=="chosen_split",  .(iteration,Node)],
+  rbindlist(chosen.hilite.prune.list)))
 chosen.layout <- node.layout[
-  chosen.hilite[, .(iteration,Node)],
+  chosen.hilite,
   on=.(iteration,Node)]
 ## > RColorBrewer::brewer.pal(3,"Set1")
 ## [1] "#E41A1C" "#377EB8" "#4DAF4A"
@@ -405,13 +410,52 @@ both.vline <- rbind(
   it.vline[,.(variable="error.percent", iteration, label="largest tree")],
   both.best[,.(variable, iteration, label = paste("best validation", variable))])
 vline.color <- "grey50"
+both.join.sel <- both.join[!is.na(min.log.lambda)]
+pass.cost <- dcast(
+  both.cost[set.name=="subtrain"], leaves ~ pass, first, value.var="value"
+)[, better := ifelse(forward<pruning, "growing", ifelse(pruning<forward, "pruning", "same"))][]
+u.it.leaves <- unique(both.cost[,.(iteration,leaves)])
+(leaves.hilite <- u.it.leaves[u.it.leaves,on="leaves"][order(iteration)][
+, rank := rank(i.iteration)
+##, by=iteration # for smooth transitions.
+][pass.cost, on="leaves"])
 viz <- animint(
   title="Cross-validation for Breiman's CART algorithm on SPAM data",
   source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-tree-spam.R",
+  selection=ggplot()+
+    ggtitle("Select iteration via pruning penalty")+
+    theme_bw()+
+    theme(legend.position="none")+
+    theme_animint(height=300)+
+    scale_y_log10("")+
+    geom_segment(aes(
+      min.log.lambda, value,
+      xend=max.log.lambda, yend=value,
+      color=set.name),
+      data=both.join.sel,
+      showSelected="set.name",
+      size=4)+
+    ## geom_segment(aes(
+    ##   mid.log.lambda, -Inf,
+    ##   xend=mid.log.lambda, yend=Inf),
+    ##   size=4,
+    ##   clickSelects="iteration",
+    ##   data=both.join.sel[, mid.log.lambda := ifelse(
+    ##     min.log.lambda == -Inf, max.log.lambda-1,
+    ##     ifelse(max.log.lambda == Inf, min.log.lambda+1, (min.log.lambda+max.log.lambda)/2))],
+    ##   alpha=0.5)+
+    scale_x_continuous("log(alpha = pruning penalty parameter)")+
+    geom_tallrect(aes(
+      xmin=min.log.lambda, xmax=max.log.lambda,
+      ymin=0, ymax=Inf),
+      data=both.join.sel,
+      alpha=0.2,
+      clickSelects="iteration")+
+    facet_grid(variable ~ ., scales="free"),
   loss=ggplot()+
     theme_bw()+
     ggtitle("Select iteration")+
-    theme_animint(width=1200)+
+    theme_animint(width=800, height=300)+
     geom_vline(aes(
       xintercept=iteration),
       color=vline.color,
@@ -428,6 +472,25 @@ viz <- animint(
       yintercept=value),
       color=vline.color,
       data=both.best)+
+    geom_vline(aes(
+      xintercept=iteration,
+      linetype=better),
+      data=unique(leaves.hilite[order(iteration),.(iteration,better)]),
+      color="blue",
+      alpha=0.2)+
+    scale_linetype_manual(values=c(
+      same=0,
+      growing=1,
+      pruning=3))+
+    geom_tallrect(aes(
+      xmin=i.iteration-0.5,
+      xmax=i.iteration+0.5,
+      key=rank),
+      data=leaves.hilite,
+      fill="black",
+      alpha=0.2,
+      color="transparent",
+      showSelected="iteration")+
     geom_line(aes(
       iteration, value, color=set.name, group=paste(pass,set.name)),
       data=both.cost)+
@@ -440,21 +503,21 @@ viz <- animint(
       "TRUE"="black",
       "FALSE"="transparent"))+
     make_tallrect(both.cost, "iteration")+
-    facet_grid(variable ~ ., labeller=label_both, scales="free")+
+    facet_grid(variable ~ ., scales="free")+
     scale_x_continuous(
       breaks=seq(0,200,by=20)),
   tree=ggplot()+
     ggtitle("Tree at selected iteration")+
     theme_bw()+
     scale_x_continuous("<-yes(feature<threshold), no(feature>=threshold)->", breaks=NULL)+
-    theme(legend.position="none")+
+    ##theme(legend.position="none")+
     theme_animint(width=1200, height=500)+
     geom_segment(aes(
       x, depth,
       key=paste(id,parent),
       xend=parent.x, yend=parent.depth),
       showSelected="iteration",
-      data=node.layout)+
+      data=node.layout[is.finite(parent.x)])+
     scale_fill_gradient2(
       "Prob(y=1)",
       low="deepskyblue",high="red",midpoint=0.5,
@@ -487,19 +550,19 @@ viz <- animint(
       size=tree.text.size,
       showSelected="iteration",
       data=node.layout)+
-    geom_rect(aes(
-      xmin=x-space, xmax=x+space,
-      ymin=depth+rect.h, ymax=depth-rect.h,
-      key=id),
-      color="black",
-      fill="transparent",
-      showSelected="iteration",
-      color_off="transparent",
-      clickSelects="Node",
-      data=node.layout)+
+    ## geom_rect(aes(
+    ##   xmin=x-space, xmax=x+space,
+    ##   ymin=depth+rect.h, ymax=depth-rect.h,
+    ##   key=id),
+    ##   color="black",
+    ##   fill="transparent",
+    ##   showSelected="iteration",
+    ##   color_off="transparent",
+    ##   clickSelects="Node",
+    ##   data=node.layout)+
     scale_y_reverse(),
   duration=list(
-    iteration=2000),
+    iteration=1000),
   out.dir="20-decision-tree-spam"
 )
 viz
