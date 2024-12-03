@@ -153,7 +153,7 @@ tree_layout <- function(node.dt){
       tree.dt[J(ord.nodes$id), x := new.x]
     }
   }
-  px <- tree.dt[J(tree.dt$parent), x]
+  px <- tree.dt[J(tree.dt$parent), x, nomatch=NA]
   tree.dt[, let(
     parent.x = px,
     parent.depth = ifelse(is.na(parent), NA, depth-1)
@@ -359,7 +359,8 @@ ggplot()+
 ])
 
 last.layout <- node.layout[iteration==max.it]
-rect.h <- 0.4
+rect.h <- 0.35
+rect.w.fac <- 0.9
 ggplot()+
   ggtitle("Tree at last iteration")+
   scale_x_continuous("<-yes(feature<threshold), no(feature>=threshold)->", breaks=NULL)+
@@ -513,17 +514,18 @@ viz <- animint(
     ##theme(legend.position="none")+
     theme_animint(width=1200, height=500)+
     geom_segment(aes(
-      x, depth,
+      x, depth-rect.h,
       key=paste(id,parent),
-      xend=parent.x, yend=parent.depth),
+      xend=parent.x, yend=parent.depth+rect.h),
       showSelected="iteration",
+      size=1,
       data=node.layout[is.finite(parent.x)])+
     scale_fill_gradient2(
       "Prob(y=1)",
       low="deepskyblue",high="red",midpoint=0.5,
       na.value="grey")+
     geom_rect(aes(
-      xmin=x-space, xmax=x+space,
+      xmin=x-rect.w.fac*space, xmax=x+rect.w.fac*space,
       ymin=depth+rect.h, ymax=depth-rect.h,
       key=id,
       fill=ifelse(terminal, prob1, NA)),
@@ -539,7 +541,7 @@ viz <- animint(
       color="black",
       showSelected="iteration")+
     geom_text(aes(
-      x, depth+0.35, label=label,
+      x, depth+0.3, label=label,
       key=id),
       size=tree.text.size,
       showSelected="iteration",
@@ -550,6 +552,7 @@ viz <- animint(
       size=tree.text.size,
       showSelected="iteration",
       data=node.layout)+
+    coord_cartesian(expand=FALSE)+
     ## geom_rect(aes(
     ##   xmin=x-space, xmax=x+space,
     ##   ymin=depth+rect.h, ymax=depth-rect.h,
