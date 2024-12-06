@@ -570,6 +570,7 @@ viz <- animint(
 )
 viz
 
+
 if(FALSE){
   animint2pages(viz, "2024-11-27-decision-tree-spam")
 }
@@ -601,3 +602,40 @@ if(FALSE){
 
 ## in candidates plot, add geom_point and geom_segment for each split
 ## point, with clickSelects="Split" (in addition to geom_tallrect).
+
+gg <- ggplot()+
+  theme_bw()+
+  theme(legend.position="none")+
+  geom_segment(aes(
+    min.log.lambda, value,
+    xend=max.log.lambda, yend=value,
+    linetype=set.name),
+    data=both.join.sel[variable=="error.percent"],
+    size=0.5)+
+  scale_y_continuous("Taux d'erreur (%)", limits=c(0,40))+
+  scale_linetype_manual(values=c(subtrain="dotted",validation="solid"))+
+  scale_x_continuous("log(alpha = penalité d'élagage)")+
+  geom_text(aes(
+    x, y, label=set.name),
+    hjust=0,
+    data=data.frame(x=-Inf, y=c(5, 15), set.name=c("subtrain","validation")))
+png("20-decision-tree-spam-alpha.png", width=5, height=3, units="in", res=200)
+print(gg)
+dev.off()
+
+gg <- ggplot()+ 
+  theme_bw()+
+  theme(legend.position="none")+
+  geom_text(aes(
+    x, y, label=set.name),
+    hjust=1,
+    data=data.frame(x=Inf, y=c(5, 15), set.name=c("subtrain","validation")))+
+  scale_linetype_manual(values=c(subtrain="dotted",validation="solid"))+
+  geom_line(aes(
+    iteration+1, error.percent, linetype=set.name),
+    data=tree.info[set.name!="diff"])+
+  scale_y_continuous("Taux d'erreur (%)", limits=c(0,40))+
+  scale_x_continuous("Nombre de noeuds terminaux", breaks=seq(0,200,by=20))
+png("20-decision-tree-spam-nodes.png", width=5, height=3, units="in", res=200)
+print(gg)
+dev.off()
