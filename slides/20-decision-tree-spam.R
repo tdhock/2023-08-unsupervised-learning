@@ -603,37 +603,47 @@ if(FALSE){
 ## in candidates plot, add geom_point and geom_segment for each split
 ## point, with clickSelects="Split" (in addition to geom_tallrect).
 
+set_french <- c(
+  subtrain="sous-entraînement",
+  validation="validation")
+lab.dt <- data.table(ensemble=set_french, y=c(5,15))
+add_french <- function(DT)DT[, ensemble := set_french[set.name]][]
+add_french(both.join.sel)
+sc_lt <- scale_linetype_manual(values=c(
+  "sous-entraînement"="dotted",
+  validation="solid"))
 gg <- ggplot()+
   theme_bw()+
   theme(legend.position="none")+
   geom_segment(aes(
     min.log.lambda, value,
     xend=max.log.lambda, yend=value,
-    linetype=set.name),
+    linetype=ensemble),
     data=both.join.sel[variable=="error.percent"],
     size=0.5)+
   scale_y_continuous("Taux d'erreur (%)", limits=c(0,40))+
-  scale_linetype_manual(values=c(subtrain="dotted",validation="solid"))+
-  scale_x_continuous("log(alpha = penalité d'élagage)")+
+  scale_x_continuous("log(alpha = pénalité d'élagage)")+
+  sc_lt+
   geom_text(aes(
-    x, y, label=set.name),
+    x, y, label=ensemble),
     hjust=0,
-    data=data.frame(x=-Inf, y=c(5, 15), set.name=c("subtrain","validation")))
+    data=data.frame(x=-Inf, lab.dt))
 png("20-decision-tree-spam-alpha.png", width=5, height=3, units="in", res=200)
 print(gg)
 dev.off()
 
+add_french(tree.info)
 gg <- ggplot()+ 
   theme_bw()+
   theme(legend.position="none")+
   geom_text(aes(
-    x, y, label=set.name),
+    x, y, label=ensemble),
     hjust=1,
-    data=data.frame(x=Inf, y=c(5, 15), set.name=c("subtrain","validation")))+
-  scale_linetype_manual(values=c(subtrain="dotted",validation="solid"))+
+    data=data.frame(x=Inf, lab.dt))+
+  sc_lt+
   geom_line(aes(
-    iteration+1, error.percent, linetype=set.name),
-    data=tree.info[set.name!="diff"])+
+    iteration+1, error.percent, linetype=ensemble),
+    data=tree.info[!is.na(ensemble)])+
   scale_y_continuous("Taux d'erreur (%)", limits=c(0,40))+
   scale_x_continuous("Nombre de noeuds terminaux", breaks=seq(0,200,by=20))
 png("20-decision-tree-spam-nodes.png", width=5, height=3, units="in", res=200)
