@@ -287,6 +287,7 @@ chosen.size <- 5
 viz <- animint(
   title="Greedy decision tree learning algorithm for binary classification (Breiman's CART)",
   source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-trees.R",
+  video="https://vimeo.com/1048533733",
   loss=ggplot()+
     ggtitle("Select iteration")+
     theme_animint(width=300)+
