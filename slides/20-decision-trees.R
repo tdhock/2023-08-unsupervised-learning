@@ -395,10 +395,14 @@ viz <- animint(
   candidates=ggplot()+
     ggtitle("Loss decrease for selected iteration; select Node and Split")+
     theme_bw()+
-    theme_animint(width=1100)+
+    theme_animint(
+      width=1100)+
     facet_grid(. ~ Feature, labeller=label_both)+
+    scale_y_continuous(
+      "<- more significant, Loss difference, less significant ->")+
     scale_x_continuous(
-      "Threshold (split point)")+
+      "Threshold (split point)",
+      breaks=seq(0,1,by=0.2))+
     geom_hline(aes(
       yintercept=loss.diff,
       key=1),
