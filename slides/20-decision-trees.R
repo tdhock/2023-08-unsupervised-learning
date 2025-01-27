@@ -293,6 +293,7 @@ viz <- animint(
     theme_animint(width=300)+
     geom_point(aes(
       iteration, loss),
+      help="One dot for each tree size",
       data=tree.info)+
     scale_x_continuous("Iteration/split", breaks=tree.info$iteration)+
     scale_y_continuous("Total logistic loss")+
@@ -305,6 +306,7 @@ viz <- animint(
       x, depth,
       key=paste(id,parent),
       xend=parent.x, yend=parent.depth),
+      help="Segments connecting each parent node to its two child nodes",
       showSelected="iteration",
       data=node.layout)+
     scale_fill_gradient2(
@@ -316,12 +318,14 @@ viz <- animint(
       ymin=depth+rect.h, ymax=depth-rect.h,
       key=id,
       fill=ifelse(terminal, prob1, NA)),
+      help="One rect for each node in decision tree, gray for decision node, various shades of blue/red for prediction node",
       showSelected="iteration",
       color="transparent",
       data=node.layout)+
     geom_point(aes(
       x-rect.w*0.8, depth,
       key=1),
+      help="Green dot shows node which will be split",
       data=chosen.layout,
       fill=chosen.color,
       size=chosen.size,
@@ -332,17 +336,20 @@ viz <- animint(
         ifelse(optimal==0, "", "*"),
         label),
       key=id),
+      help="Split rule (decision nodes) or proportion of positive labels (prediction nodes)",
       showSelected="iteration",
       data=node.layout)+
     geom_text(aes(
       x, depth-0.05, label=paste0("N=",N),
       key=id),
+      help="Number of data points in node",
       showSelected="iteration",
       data=node.layout)+
     geom_rect(aes(
       xmin=x-rect.w, xmax=x+rect.w,
       ymin=depth+rect.h, ymax=depth-rect.h,
       key=id),
+      help="Selected node shown with black border",
       color="black",
       fill="transparent",
       showSelected="iteration",
@@ -357,6 +364,7 @@ viz <- animint(
       ymin=V2min, ymax=V2max,
       key=Node,
       fill=pred),
+      help="One rect for each node in decision tree",
       showSelected="iteration",
       color="transparent",
       data=rect.pred[terminal==TRUE])+
@@ -364,6 +372,7 @@ viz <- animint(
       V1, V2, fill=y,
       key=row_id,
       color=correct),
+      help="One dot for each data point",
       shape=21,
       showSelected="iteration",
       data=train.pred)+
@@ -378,6 +387,7 @@ viz <- animint(
       xmin=V1min, xmax=V1max,
       ymin=V2min, ymax=V2max,
       key=Node),
+      help="Black border for selected node",
       clickSelects="Node",
       showSelected="iteration",
       color="black",
@@ -389,6 +399,7 @@ viz <- animint(
       key=Split,
       xend=xend, yend=yend),
       data=cand.join,
+      help="One grey segment for each split point in selected node",
       alpha=0.5,
       showSelected=c("iteration","Node"),
       clickSelects="Split")+
@@ -407,6 +418,7 @@ viz <- animint(
     geom_hline(aes(
       yintercept=loss.diff,
       key=1),
+      help="Green horizontal line shows min loss in this iteration",
       data=chosen.hilite[,.(iteration,loss.diff)],
       color=chosen.color,
       showSelected="iteration")+
@@ -415,6 +427,7 @@ viz <- animint(
       hjust=ifelse(split.point<0.5, 0, 1),
       label=sprintf("_Diff=%.4f_", loss.diff),
       key=1),
+      help="Green text shows min loss value in this iteration",
       data=chosen.hilite,
       color=chosen.color,
       showSelected="iteration")+
@@ -423,12 +436,14 @@ viz <- animint(
       hjust=ifelse(split.point<0.5, 0, 1),
       label=sprintf("_Diff=%.4f_", loss.diff),
       key=paste(id, split.point)),
+      help="Black text shows loss value of selected split",
       data=candidate.dt,
       showSelected=c("iteration","Node","Split"))+
     geom_tallrect(aes(
       key=paste(id, split.point),
       xmin=data.before,
       xmax=data.after),
+      help="One rect for each split in selected node",
       data=candidate.dt,
       color=NA,
       alpha=0.5,
@@ -438,6 +453,7 @@ viz <- animint(
       split.point, -Inf,
       xend=split.point, yend=Inf,
       key=paste(id, split.point)),
+      help="One segment for each split in selected node",
       data=candidate.dt,
       clickSelects="Split",
       alpha=0.5,
@@ -446,20 +462,13 @@ viz <- animint(
       split.point, loss.diff,
       group=id,
       key=id),
+      help="One line for each feature/node that could be split in selected iteration",
       size=3,
       alpha=1,
       alpha_off=0.2,
       data=candidate.dt,
       showSelected="iteration",
       clickSelects="Node")+
-    ## geom_point(aes(
-    ##   split.point, loss.diff,
-    ##   key=1),
-    ##   data=chosen.hilite,
-    ##   fill=chosen.color,
-    ##   color="black",
-    ##   size=chosen.size,
-    ##   showSelected="iteration")+
     scale_fill_manual(values=c(
       "sub-optimal"="transparent",
       chosen_split=chosen.color,
@@ -469,6 +478,7 @@ viz <- animint(
       split.point, loss.diff,
       fill=loss.status,
       key=paste(id, split.point)),
+      help="One dot for each split in selected node",
       size=3,
       data=candidate.dt,
       alpha=1,
