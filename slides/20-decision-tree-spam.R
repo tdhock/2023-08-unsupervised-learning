@@ -412,16 +412,25 @@ both.vline <- rbind(
   both.best[,.(variable, iteration, label = paste("best validation", variable))])
 vline.color <- "grey50"
 both.join.sel <- both.join[!is.na(min.log.lambda)]
+
 pass.cost <- dcast(
-  both.cost[set.name=="subtrain"], leaves ~ pass, first, value.var="value"
-)[, better := ifelse(forward<pruning, "growing", ifelse(pruning<forward, "pruning", "same"))][]
+  both.cost[set.name=="subtrain" & variable=="loss"],
+  leaves ~ pass, value.var="value"
+)[
+, better := fcase(
+  forward<pruning, "growing",
+  pruning<forward, "pruning",
+  default="same"
+)][]
 u.it.leaves <- unique(both.cost[,.(iteration,leaves)])
 (leaves.hilite <- u.it.leaves[u.it.leaves,on="leaves"][order(iteration)][
 , rank := rank(i.iteration)
 ##, by=iteration # for smooth transitions.
 ][pass.cost, on="leaves"])
+
 viz <- animint(
   title="Cross-validation for Breiman's CART algorithm on SPAM data",
+  video="https://vimeo.com/1051463402",
   source="https://github.com/tdhock/2023-08-unsupervised-learning/blob/main/slides/20-decision-tree-spam.R",
   selection=ggplot()+
     ggtitle("Select iteration via pruning penalty")+
@@ -434,51 +443,49 @@ viz <- animint(
       xend=max.log.lambda, yend=value,
       color=set.name),
       data=both.join.sel,
+      help="Logistic loss (top) and classification error (bottom) are piecewise constant functions of the tree pruning penalty parameter.",
       showSelected="set.name",
       size=4)+
-    ## geom_segment(aes(
-    ##   mid.log.lambda, -Inf,
-    ##   xend=mid.log.lambda, yend=Inf),
-    ##   size=4,
-    ##   clickSelects="iteration",
-    ##   data=both.join.sel[, mid.log.lambda := ifelse(
-    ##     min.log.lambda == -Inf, max.log.lambda-1,
-    ##     ifelse(max.log.lambda == Inf, min.log.lambda+1, (min.log.lambda+max.log.lambda)/2))],
-    ##   alpha=0.5)+
     scale_x_continuous("log(alpha = pruning penalty parameter)")+
     geom_tallrect(aes(
       xmin=min.log.lambda, xmax=max.log.lambda,
       ymin=0, ymax=Inf),
       data=both.join.sel,
+      help="Click to use cost-complexity pruning to select a decision tree.",
       alpha=0.2,
       clickSelects="iteration")+
     facet_grid(variable ~ ., scales="free"),
   loss=ggplot()+
     theme_bw()+
     ggtitle("Select iteration")+
-    theme_animint(width=800, height=300)+
+    theme_animint(width=700, height=300)+
     geom_vline(aes(
       xintercept=iteration),
       color=vline.color,
+      help="These vertical grey lines show the sizes of the pruned trees with min logistic loss, and min error rate.",
       data=both.best)+
     geom_vline(aes(
       xintercept=iteration),
       color=vline.color,
+      help=paste0("This vertical line shows the max tree size, given the constraint on the min number of data per node = ",min.data.per.node,"."),
       data=it.vline)+
     geom_text(aes(
       iteration, Inf, label=label),
       hjust=0,
+      help="These text labels explain the model sizes which are highlighted using the grey vertical lines.",
       data=both.vline)+
     geom_hline(aes(
       yintercept=value),
       color=vline.color,
+      help="These horizontal grey lines show the min logistic loss (top), and min classification error rate (bottom).",
       data=both.best)+
     geom_vline(aes(
       xintercept=iteration,
       linetype=better),
       data=unique(leaves.hilite[order(iteration),.(iteration,better)]),
       color="blue",
-      alpha=0.2)+
+      help="Each vertical line indicates a model size for which there is a subtrain loss difference, between growing and pruning.",
+      alpha=0.3)+
     scale_linetype_manual(values=c(
       same=0,
       growing=1,
@@ -487,6 +494,7 @@ viz <- animint(
       xmin=i.iteration-0.5,
       xmax=i.iteration+0.5,
       key=rank),
+      help="Rects are shown for the selected tree size, left for growing, right for pruning.",
       data=leaves.hilite,
       fill="black",
       alpha=0.2,
@@ -494,10 +502,12 @@ viz <- animint(
       showSelected="iteration")+
     geom_line(aes(
       iteration, value, color=set.name, group=paste(pass,set.name)),
+      help="Lines show loss and error rate for each tree model, growing iterations <= 60, pruning iterations > 60.",
       data=both.cost)+
     geom_point(aes(
       iteration, value, color=set.name, fill=selected),
       shape=21,
+      help="Dots indicate if model is selected using cost-complexity pruning, for some value of the penalty parameter.",
       data=both.join)+
     scale_y_log10("")+
     scale_fill_manual(values=c(
@@ -510,13 +520,15 @@ viz <- animint(
   tree=ggplot()+
     ggtitle("Tree at selected iteration")+
     theme_bw()+
-    scale_x_continuous("<-yes(feature<threshold), no(feature>=threshold)->", breaks=NULL)+
-    ##theme(legend.position="none")+
-    theme_animint(width=1200, height=500)+
+    scale_x_continuous(
+      "<-yes(feature<threshold), no(feature>=threshold)->",
+      breaks=NULL)+
+    theme_animint(width=1100, height=450)+
     geom_segment(aes(
       x, depth-rect.h,
       key=paste(id,parent),
       xend=parent.x, yend=parent.depth+rect.h),
+      help="A black segment connects each node with its parent.",
       showSelected="iteration",
       size=1,
       data=node.layout[is.finite(parent.x)])+
@@ -529,12 +541,14 @@ viz <- animint(
       ymin=depth+rect.h, ymax=depth-rect.h,
       key=id,
       fill=ifelse(terminal, prob1, NA)),
+      help="One rect per node: grey for non-terminal decision node, various shades of red/blue for terminal prediction node.",
       showSelected="iteration",
       color="transparent",
       data=node.layout)+
     geom_point(aes(
       x-space*0.8, depth,
       key=1),
+      help="Green dot indicates next iteration of growing or pruning.",
       data=chosen.layout,
       fill=chosen.color,
       size=chosen.size,
@@ -543,27 +557,21 @@ viz <- animint(
     geom_text(aes(
       x, depth+0.3, label=label,
       key=id),
+      help="Second line of text shows decision rule for grey non-terminal decision nodes, or proportion of positive labels for blue/red terminal prediction nodes.",
       size=tree.text.size,
       showSelected="iteration",
       data=node.layout)+
     geom_text(aes(
       x, depth-0.05, label=Nlab,
       key=id),
+      help="First line of text shows number of subtrain samples in each node.",
       size=tree.text.size,
       showSelected="iteration",
       data=node.layout)+
     coord_cartesian(expand=FALSE)+
-    ## geom_rect(aes(
-    ##   xmin=x-space, xmax=x+space,
-    ##   ymin=depth+rect.h, ymax=depth-rect.h,
-    ##   key=id),
-    ##   color="black",
-    ##   fill="transparent",
-    ##   showSelected="iteration",
-    ##   color_off="transparent",
-    ##   clickSelects="Node",
-    ##   data=node.layout)+
-    scale_y_reverse(),
+    scale_y_reverse(
+      "Depth of decision tree",
+      breaks=seq(0, 20)),
   duration=list(
     iteration=1000),
   out.dir="20-decision-tree-spam"
