@@ -959,6 +959,88 @@ showCase <- function(show.name){
       guide="none")
   print(gg.splits)
 }
+N.data <- 8L
+min.seg.len <- 1L
+max_segs <- function(max.seg.num){
+  max.segments <- as.integer(max.seg.num)
+  cost.dt <- binsegRcpp::get_complexity_best_optimal_cost(
+    N.data, min.seg.len, max.segments)
+  set.seed(1)
+  best.data <- if(max.segments<=4){
+    c(seq(1,max.segments-1), rep(N.data,N.data-max.segments+1))
+  }else{
+    c(1:4, (4:1 -1)*4)
+  }
+  data.list <- list(
+    Worst=rep(1:2,l=N.data),
+    Best=best.data,
+    Equal=1:N.data)
+  library(data.table)
+  (data.dt <- data.table(splits=names(data.list))[, data.table(
+    y="data",
+    value=as.numeric(data.list[[splits]]),
+    position=1:N.data
+  ), by=splits])
+  fit.list <- suppressWarnings(lapply(data.list, binsegRcpp::binseg_normal, max.segments))
+  ord.dt <- data.table(splits=names(data.list))[
+  , fit.list[[splits]]$splits
+  , by=splits][, y := "data"]
+  coef.dt <- data.table(splits=names(data.list))[
+  , coef(fit.list[[splits]], max.segments)
+  , by=splits][, y := "data"]
+  tree.dt <- data.table(splits=names(data.list))[, {
+    fit <- fit.list[[splits]]
+    tree.dt <- binsegRcpp::get_tree_empirical(fit)
+    binsegRcpp::tree_layout(tree.dt)
+  }, by=splits][, y := "depth"]
+  total.dt <- tree.dt[, .(
+    candidates=sum(binsegRcpp::size_to_splits(size, min.seg.len))
+  ), by=splits][, let(
+    Splits=paste(splits, "splits"),
+    Candidates=paste(candidates, "candidates")
+  )]
+  join.tree <- total.dt[tree.dt, on="splits"]
+  join.data <- total.dt[data.dt, on="splits"]
+  join.coef <- total.dt[coef.dt, on="splits"]
+  join.ord <- total.dt[ord.dt, on="splits"]
+  x.off <- (N.data+1)/2
+  ggplot()+
+    ggtitle(sprintf("N_data=%d, Max segments=%d", N.data, max.segments))+
+    theme_bw()+
+    facet_grid(y ~ Splits + Candidates, scales="free")+
+    geom_point(aes(
+      position, value),
+      data=join.data)+
+    geom_vline(aes(
+      xintercept=start.pos),
+      linetype="dashed",
+      color="green",
+      data=join.coef[start>1])+
+    geom_label(aes(
+      end+0.5, Inf,
+      label=segments-1),
+      color="green",
+      vjust=1,
+      data=join.ord[segments>1])+
+    geom_segment(aes(
+      start.pos, mean,
+      xend=end.pos, yend=mean),
+      size=1,
+      color="green",
+      data=join.coef)+
+    geom_segment(aes(
+      x+x.off, depth,
+      xend=parent.x+x.off, yend=parent.depth),
+      data=join.tree[!is.na(parent)])+
+    geom_label(aes(
+      x+x.off, depth,
+      label=size),
+      ##label=sprintf("n=%d\nc=%d",size,size-1)),
+      data=join.tree)+
+    scale_y_continuous("", breaks=seq(0,100))+
+    scale_x_continuous("", breaks=NULL)+
+    theme(panel.grid.minor=element_blank())
+}
 
 showCase("real")
 ```
@@ -993,6 +1075,62 @@ showCase("sin")
 
 ```{r, fig.height=4}
 showCase("linear")
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(2)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(3)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(4)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(5)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(6)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(7)
+```
+
+---
+
+# Synthetic data time complexity, vary max segments
+
+```{r}
+max_segs(8)
 ```
 
 ---
