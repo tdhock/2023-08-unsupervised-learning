@@ -1142,13 +1142,62 @@ max_segs(8)
 - $n\in\{60,71,72,80\}$ data, min segment length $m=5$, and number of splits/iterations $K=9$.
 - Smaller $n\in\{60,71\}$ values result in a balanced first split,
 - Larger $n\in\{72,80\}$ values result in an unbalanced first split (one small child with no splits, one large child with all remaining splits).
-- [Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654).
+- [Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654) propose algorithm to compute optimal binary tree.
+- Is binary segmentation asympototically optimal speed in real data?
+
+---
+
+# Empirical number of candidates (Poisson loss)
+
+\includegraphics[width=\textwidth]{figure-mcgill-iterations.png}
+
+- 2752 real genomic count data sets from McGill benchmark of data size $n$ from 87 to 263169, using binary segmentation with the Poisson loss. 
+- Number of candidate splits to consider in real data (grey dots) achieves the asymptotic best case, $O(n\log n)$.
+
+---
+
+# Empirical number of candidates (Square loss)
+
+\includegraphics[width=\textwidth]{figure-neuroblastoma-iterations.png}
+
+- 13721 real genomic data sets from neuroblastoma benchmark of data size $n$ from 11 to 5937, using binary segmentation with the square loss. 
+- Number of candidate splits achieves the asymptotic best case, $O(n\log n)$, and in 45 instances (black circles) requires fewer candidate splits than predicted by the best case heuristic.
+- For max segments = 10, we used dynamic programming to compute the best case number of splits for all data sizes between 11 and 100 (orange line), and the heuristic (green line) was exact for only 5 data sizes $n\in\{11,12,13,18,19\}$ (purple circles).
+
+---
+
+# Analysis of insert time and storage (STL list)
+
+To store previously computed best loss/split for each segment, use
+C++ Standard template library list as baseline.
+
+- If list has $p$ items then insert takes $O(1)$ time.
+- Find best segment to split: $O(p)$ time.
+- Total $O(K^2)$ time for $K$ iterations (equal splits), larger than $O(n\log K)$ time for computing candidate loss values.
+
+```{=latex}
+\small
+\begin{tabular}{ccc}
+splits $K$     & items in list (equal splits)   &   items in list (unequal splits)   \\
+\hline
+ 1   & 1  & 1 \\
+ 2 & 2 &  1 \\ 
+ 3 & 3 &  1 \\
+$\vdots$  &     $\vdots$  & $\vdots$ \\
+32 & 32  & 1 \\
+33       & 31 &  1 \\
+34       & 30 &  1 \\
+$\vdots$  &     $\vdots$  & $\vdots$ \\
+62        & 2 &  1 \\
+63        & 1  & 1
+\end{tabular}
+```
 
 ---
 
 # Analysis of insert time and storage (STL multiset)
 
-To store previously computed best loss/split for each segment, use a
+To achieve asymptotic best case timings, use a
 C++ Standard template library multiset, keyed by loss decrease. If
 multiset has $p$ items then insert takes $O(\log p)$ time. Below:
 inserts column shows $p$ for each insert, and size column shows $p$
@@ -1177,33 +1226,16 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 
 ---
 
-# Analysis of insert time and storage (STL list)
+# Timings using L1 loss
 
-For comparison, use
-C++ Standard template library list as baseline.
+\includegraphics[width=\textwidth]{figure-timings-laplace.png}
 
-- If list has $p$ items then insert takes $O(1)$ time.
-- Find best segment to split: $O(p)$ time.
-- Total $O(K^2)$ time for $K$ iterations (equal splits), larger than $O(n\log K)$ time for computing candidate loss values.
-
-```{=latex}
-\small
-\begin{tabular}{ccc}
-  $K$     & equal splits   &   unequal splits   \\
-  & size & size\\
-\hline
- 1   & 1  & 1 \\
- 2 & 2 &  1 \\ 
- 3 & 3 &  1 \\
-$\vdots$  &     $\vdots$  & $\vdots$ \\
-32 & 32  & 1 \\
-33       & 31 &  1 \\
-34       & 30 &  1 \\
-$\vdots$  &     $\vdots$  & $\vdots$ \\
-62        & 2 &  1 \\
-63        & 1  & 1
-\end{tabular}
-```
+- Number of segments grows with data size, $K=O(n)$.
+- Best case: binsegRcpp multiset is $O(n\log n)$, asymptotically
+  faster than binsegRcpp list, $O(n^2)$.
+- ruptures is significantly slower (100x).
+- Worst case: all algorithms are quadratic, because that is the number
+  of candidate change-points that must be considered.
 
 ---
 
@@ -1215,15 +1247,6 @@ $\vdots$  &     $\vdots$  & $\vdots$ \\
 
 ---
 
-# Accuracy of binsegRcpp and changepoint
-
-\includegraphics[width=\textwidth]{changepoint.bug.png}
-
-- Real data set for which changepoint does not compute the correct model.
-- Loss should be minimized at each iteration.
-
----
-
 # Timings using square loss
 
 \includegraphics[width=\textwidth]{figure-timings.png}
@@ -1232,14 +1255,6 @@ $\vdots$  &     $\vdots$  & $\vdots$ \\
 - ruptures is between $O(n\log n)$ and $O(n^2)$ time, but with large constant factors.
 - binsegRcpp list has larger slope: $O(n^2)$ time.
 - changepoint has even larger slope: $O(n^3)$ time.
-
----
-
-# Timings using L1 loss
-
-\includegraphics[width=\textwidth]{figure-timings-laplace.png}
-
-- binsegRcpp multiset and ruptures are asymptotically faster than binsegRcpp list.
 
 ---
 
@@ -1259,7 +1274,28 @@ $\vdots$  &     $\vdots$  & $\vdots$ \\
 
 \includegraphics[width=\textwidth]{figure-compare-distributions.png}
 
-- Very little difference between Laplace (log-linear) and others (linear).
+- Laplace (log-linear) is somewhat slower than others (linear).
+
+---
+
+# Accuracy of binsegRcpp and changepoint
+
+\includegraphics[width=\textwidth]{changepoint.bug.png}
+
+- Real data set for which changepoint does not compute the correct model.
+- Loss should be minimized at each iteration.
+
+---
+
+# Conclusions
+
+- Binary segmentation is an important algorithm for change-point detection in sequential data.
+- Optimal binary trees used to determine best case number of
+  candidates that the algorithm needs to consider.
+- Empirical number of candidates in real data: same as best case, asymptotically.
+- Proposed binsegRcpp R package provides C++ code which is asymptotically optimal speed, and correct.
+- `install.packages("binsegRcpp")` in R.
+- Future work: faster method for computing optimal binary trees?
 
 ---
 
