@@ -812,15 +812,15 @@ plot.iteration()
 
 - Let $n=2^J$ for some $J\in\{1,2,\dots\}$, for example $J=6
   \Rightarrow n=64$.
-- For any $j\in\{1,\dots,J+1\}$ if we do $I=2^{j-1}$ iterations
+- For any $j\in\{1,\dots,J+1\}$ if we do $K=2^{j-1}$ iterations
   then how many split cost values to compute?
-- Best case: $nj -2^j + 1 = n(1+\log_2 I) -I/2 +1 \Rightarrow O(n \log I)$.
-- Worst case: $nI - I(1+I)/2 \Rightarrow O(nI)$.
+- Best case: $nj -2^j + 1 = n(1+\log_2 K) -K/2 +1 \Rightarrow O(n \log K)$.
+- Worst case: $nK - K(1+K)/2 \Rightarrow O(nK)$.
  
 ```{=latex}
 \small
 \begin{tabular}{cccccc}
-$j$ & $I$ & best & total & worst & total \\
+$j$ & $K$ & best & total & worst & total \\
 \hline
 1 & 1 & $n-1=63$  & $n-1=63$    & $n-1=63$ & $n-1=63$ \\
 2 & 2 & $n-2=62$  & $2n-3=125$  & $n-2=62$ & $2n-3=125$ \\
@@ -1135,21 +1135,32 @@ max_segs(8)
 
 ---
 
-# Analysis of insert time and storage
+# Optimal binary trees
+
+\includegraphics{figure-optimal-trees-some}
+
+- $n\in\{60,71,72,80\}$ data, min segment length $m=5$, and number of splits/iterations $K=9$.
+- Smaller $n\in\{60,71\}$ values result in a balanced first split,
+- Larger $n\in\{72,80\}$ values result in an unbalanced first split (one small child with no splits, one large child with all remaining splits).
+- [Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654).
+
+---
+
+# Analysis of insert time and storage (STL multiset)
 
 To store previously computed best loss/split for each segment, use a
-C++ Standard template library multimap, keyed by loss decrease. If
-multimap has $p$ items then insert takes $O(\log p)$ time. Below:
+C++ Standard template library multiset, keyed by loss decrease. If
+multiset has $p$ items then insert takes $O(\log p)$ time. Below:
 inserts column shows $p$ for each insert, and size column shows $p$
 after inserts. Total
-$-\log(I-1) + \sum_{p=1}^{I-1} 2\log p\in O(I\log I)$
-time over all inserts, smaller than $O(n\log I)$ time for split computation.
+$-\log(K-1) + \sum_{p=1}^{K-1} 2\log p\in O(K\log K)$
+time over all inserts, smaller than $O(n\log K)$ time for split computation.
 
 ```{=latex}
 \small
 \begin{tabular}{ccccc}
      & equal splits   &      & unequal splits &  \\
- iteration $I$ & inserts & size & inserts & size \\
+ iteration $K$ & inserts & size & inserts & size \\
 \hline
  1 & 0   & 1 & 0 & 1 \\
  2 & 0,1 & 2 & 0 & 1 \\ 
@@ -1163,6 +1174,92 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 63 &       & 1 & 0 & 1
 \end{tabular}
 ```
+
+---
+
+# Analysis of insert time and storage (STL list)
+
+For comparison, use
+C++ Standard template library list as baseline.
+
+- If list has $p$ items then insert takes $O(1)$ time.
+- Find best segment to split: $O(p)$ time.
+- Total $O(K^2)$ time for $K$ iterations (equal splits), larger than $O(n\log K)$ time for computing candidate loss values.
+
+```{=latex}
+\small
+\begin{tabular}{ccc}
+  $K$     & equal splits   &   unequal splits   \\
+  & size & size\\
+\hline
+ 1   & 1  & 1 \\
+ 2 & 2 &  1 \\ 
+ 3 & 3 &  1 \\
+$\vdots$  &     $\vdots$  & $\vdots$ \\
+32 & 32  & 1 \\
+33       & 31 &  1 \\
+34       & 30 &  1 \\
+$\vdots$  &     $\vdots$  & $\vdots$ \\
+62        & 2 &  1 \\
+63        & 1  & 1
+\end{tabular}
+```
+
+---
+
+# Comparing implementations of binary segmentation
+
+\includegraphics{table-compare-binseg-packages}
+
+[Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654).
+
+---
+
+# Accuracy of binsegRcpp and changepoint
+
+\includegraphics[width=\textwidth]{changepoint.bug.png}
+
+- Real data set for which changepoint does not compute the correct model.
+- Loss should be minimized at each iteration.
+
+---
+
+# Timings using square loss
+
+\includegraphics[width=\textwidth]{figure-timings.png}
+
+- binsegRcpp map, `wbs::sbs`, `fpop::multiBinSeg` optimal: $O(n\log n)$ time in best case.
+- ruptures is between $O(n\log n)$ and $O(n^2)$ time, but with large constant factors.
+- binsegRcpp list has larger slope: $O(n^2)$ time.
+- changepoint has even larger slope: $O(n^3)$ time.
+
+---
+
+# Timings using L1 loss
+
+\includegraphics[width=\textwidth]{figure-timings-laplace.png}
+
+- binsegRcpp multiset and ruptures are asymptotically faster than binsegRcpp list.
+
+---
+
+# Timings using Gaussian change in mean and variance model
+
+\includegraphics[width=\textwidth]{figure-timings-meanvar_norm.png}
+
+---
+
+# Timings using Poisson loss
+
+\includegraphics[width=\textwidth]{figure-timings-poisson.png}
+
+---
+
+# Comparing loss functions, binsegRcpp multiset
+
+\includegraphics[width=\textwidth]{figure-compare-distributions.png}
+
+- Very little difference between Laplace (log-linear) and others (linear).
 
 ---
 
