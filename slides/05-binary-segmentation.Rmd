@@ -136,7 +136,7 @@ plotK <- function(k){
     geom_segment(aes(
       start-0.5, mean,
       xend=end+0.5, yend=mean),
-      size=2,
+      linewidth=2,
       alpha=0.5,
       color=model.color,
       data=k.segs)
@@ -537,7 +537,7 @@ $$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)^2/(t-j+1).$$
 
 # Learning algorithm, recursion/pseudo-code
 
-Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,n}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and 
+Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,e}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and
 let $f(j,e)=\min,\argmin_{t\in \{j,\dots,e-1\}} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
 
 Initialization. Let $\mathcal L_1=L_{1,n}$ be the loss with one segment, 
@@ -624,11 +624,15 @@ get_vlines <- function(segs){
 }
 (prev.best.tall <- data.table(start=1L, end=nrow(one.pid.chr)))
 prev.best.i <- NULL
+cum.cand <- 0
 plot.iteration <- function(){
   (it.segs <- prev.best.tall[, .(
     full_seg_start=start, full_seg_end=end)])
   (it.possible <- possible_splits(it.segs))
   prev.not.best <- if(!is.null(prev.best.i))prev.splits.dt[-prev.best.i]
+  this.cand <- if(is.null(it.possible)) 0 else nrow(it.possible)
+  cum.cand <<- cum.cand+this.cand
+  cand.this.step <- data.table(this.cand, cum.cand)
   it.possible.show <- rbind(
     if(!is.null(prev.best.i))data.table(
       computed="previously",
@@ -689,7 +693,15 @@ plot.iteration <- function(){
       xend=end+0.5, yend=mean),
       size=2,
       alpha=0.5,
-      data=data.table(panel="data", it.segs.dt))
+      data=data.table(panel="data", it.segs.dt))+
+    geom_label(aes(
+      Inf, Inf,
+      label = sprintf("candidates this step= %d, cumulative= %d", this.cand, cum.cand),
+      color=computed),
+      alpha=0.75,
+      hjust=1,
+      vjust=1,
+      data=data.table(panel="loss difference", computed="this step", cand.this.step))
   suppressWarnings(print(gg))
   prev.best.i <<- it.best.i
   prev.best.tall <<- it.best.tall
