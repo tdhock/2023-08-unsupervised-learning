@@ -326,7 +326,7 @@ plotChange <- function(show.i){
     geom_segment(aes(
       start-0.5, mean,
       xend=end+0.5, yend=mean),
-      size=2,
+      linewidth=2,
       alpha=0.5,
       color=model.color,
       data=data.table(y="logratio", show.segs))
@@ -417,7 +417,7 @@ plot2 <- function(show.i){
     geom_segment(aes(
       start-0.5, mean,
       xend=end+0.5, yend=mean),
-      size=2,
+      linewidth=2,
       alpha=0.5,
       color=model.color,
       data=data.table(y="logratio", show.segs))+
@@ -691,7 +691,7 @@ plot.iteration <- function(){
       start-0.5, mean,
       color=computed,
       xend=end+0.5, yend=mean),
-      size=2,
+      linewidth=2,
       alpha=0.5,
       data=data.table(panel="data", it.segs.dt))+
     geom_label(aes(
@@ -915,7 +915,7 @@ showCase <- function(show.name){
       start-0.5, mean,
       xend=end+0.5, yend=mean),
       data=show.segs,
-      size=2,
+      linewidth=2,
       alpha=0.5,
       color=model.color)+
     geom_vline(aes(
@@ -1025,7 +1025,7 @@ max_segs <- function(max.seg.num){
     geom_segment(aes(
       start.pos, mean,
       xend=end.pos, yend=mean),
-      size=1,
+      linewidth=1,
       color="green",
       data=join.coef)+
     geom_segment(aes(
