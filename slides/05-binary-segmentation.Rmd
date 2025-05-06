@@ -959,9 +959,9 @@ showCase <- function(show.name){
       guide="none")
   print(gg.splits)
 }
-N.data <- 8L
-min.seg.len <- 1L
 max_segs <- function(max.seg.num){
+  N.data <- 8L
+  min.seg.len <- 1L
   max.segments <- as.integer(max.seg.num)
   cost.dt <- binsegRcpp::get_complexity_best_optimal_cost(
     N.data, min.seg.len, max.segments)
