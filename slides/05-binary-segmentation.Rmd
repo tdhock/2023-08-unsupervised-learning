@@ -18,24 +18,22 @@ my.theme <- theme_grey()+
 theme_set(my.theme)
 ```
 
-# Motivation for changepoint detection in time series data
+# Introduction
+
+## Motivation for changepoint detection in time series data
 
 - Detecting changes/abnormalities important in medicine.
 
 ![Electrocardiograms (heart monitoring), Fotoohinasab et al, Asilomar conference 2020.](intro-ecg)
 
----
-
-# Motivation for changepoint detection in time series data
+## Motivation for changepoint detection in time series data
 
 - Detecting the time when a spike occurs is important in neuroscience.
 
 ![Neural spikes in calcium imaging data, Jewell et al, Biostatistics
 2019.](intro-neuroscience)
 
----
-
-# Motivation for changepoint detection in genomic data sequences
+## Motivation for changepoint detection in genomic data sequences
 
 - Detecting breakpoints is important in diagnosis of some types of
   cancer, such as neuroblastoma.
@@ -43,16 +41,14 @@ theme_set(my.theme)
 ![DNA copy number data, breakpoints associated with aggressive cancer,
 Hocking et al, Bioinformatics 2014.](intro-breakpoints)
 
----
-
-# Motivation for changepoint detection in genomic data sequences
+## Motivation for changepoint detection in genomic data sequences
 
 - Detecting peaks (up/down changes) in genomic data is important in
   order to understand which genes are active or inactive.
 
 ![ChIP-seq data for characterizing active regions in the human genome, Hocking et al, Bioinformatics 2017.](intro-peaks)
 
-# Segmentation / changepoint detection framework
+## Segmentation / changepoint detection framework
 
 - Let $x_1, \dots, x_n \in\mathbb R$ be a data sequence
   over space or time (logratio column in DNA copy number data below).
@@ -66,9 +62,7 @@ one.dt <- nb.dt[profile.id==4 & chromosome==2]
 one.dt
 ```
 
---- 
-
-# Segmentation / changepoint data visualization
+## Segmentation / changepoint data visualization
 
 - Let $x_1, \dots, x_n \in\mathbb R$ be a data sequence
   over space or time.
@@ -83,9 +77,7 @@ ggplot()+
     data=one.dt)
 ```
 
----
-
-# Assume normal distribution with change in mean, constant variance
+## Assume normal distribution with change in mean, constant variance
 
 - There are a certain number of clusters/segments
   $K\in\{1,\dots, n\}$.
@@ -101,9 +93,7 @@ ggplot()+
   $(x-m)^2$.
 - Other distributional assumptions / loss functions are possible.
 
---- 
-
-# Visualize data sequence
+## Visualize data sequence
 
 ```{r}
 one.dt[, data.i := .I]
@@ -118,9 +108,7 @@ gg <- ggplot()+
 gg
 ```
 
---- 
-
-# Simplest model, 1 segment, 0 changepoints
+## Simplest model, 1 segment, 0 changepoints
 
 ```{r}
 bs.list <- suppressWarnings(binsegRcpp::binseg_normal(one.dt[["logratio"]]))
@@ -144,81 +132,61 @@ plotK <- function(k){
 plotK(1)
 ```
 
----
-
-# Find best single changepoint (two segments)
+## Find best single changepoint (two segments)
 
 ```{r}
 plotK(2)
 ```
 
----
-
-# Find two changepoints (three segments)
+## Find two changepoints (three segments)
 
 ```{r}
 plotK(3)
 ```
 
----
-
-# Find four segments
+## Find four segments
 
 ```{r}
 plotK(4)
 ```
 
----
-
-# Find five segments
+## Find five segments
 
 ```{r}
 plotK(5)
 ```
 
----
-
-# Find six segments
+## Find six segments
 
 ```{r}
 plotK(6)
 ```
 
----
-
-# Find seven segments
+## Find seven segments
 
 ```{r}
 plotK(7)
 ```
 
----
-
-# Find 50 segments
+## Find 50 segments
 
 ```{r}
 plotK(50)
 ```
 
----
-
-# Find 100 segments
+## Find 100 segments
 
 ```{r}
 plotK(100)
 ```
 
----
-
-# Largest model: `r nrow(one.dt)` segments (changes everywhere)
+## Largest model: `r nrow(one.dt)` segments (changes everywhere)
 
 ```{r}
 plotK(nrow(one.dt))
 ```
 
----
-
-# Error/loss function visualization
+## Error/loss function visualization
 
 - Let $m^{(k)}\in\mathbb R^n$ be the mean vector with $k$ segments.
 - Error for $k$ segments is defined as sum of squared difference
@@ -234,9 +202,7 @@ ggplot()+
     data=bs.models)
 ```
 
----
-
-# Error/loss function zoom
+## Error/loss function zoom
 
 ```{r}
 show.max <- 10
@@ -247,9 +213,7 @@ ggplot()+
   scale_x_continuous(breaks=1:show.max)
 ```
 
----
-
-# Learning algorithm
+## Learning algorithm
 
 - Start with one segment, then repeat:
 - Compute loss of each possible split.
@@ -263,9 +227,7 @@ $$L_{1,n} = \sum_{i=1}^n (x_i - s/n)^2 = \sum_{i=1}^n [x_i^2] - 2(s/n)s + n(s/n)
 - We can minimize over all changepoints $t$ in linear $O(n)$ time,
 $$\min_{t\in\{1,\dots,n-1\}} L_{1,t} + L_{t+1,n}$$
 
----
-
-# First step of binary segmentation
+## First step of binary segmentation
 
 ```{r}
 x.vec <- one.dt[["logratio"]]
@@ -334,33 +296,25 @@ plotChange <- function(show.i){
 plotChange(31)
 ```
 
----
-
-# First step of binary segmentation
+## First step of binary segmentation
 
 ```{r}
 plotChange(41)
 ```
 
----
-
-# First step of binary segmentation
+## First step of binary segmentation
 
 ```{r}
 plotChange(111)
 ```
 
----
-
-# First step of binary segmentation
+## First step of binary segmentation
 
 ```{r}
 plotChange(157)
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 (seg.info <- first.min[, data.table(
@@ -434,49 +388,37 @@ plot2(15)
 
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 plot2(30)
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 plot2(100)
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 plot2(112)
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 plot2(156)
 ```
 
----
-
-# Second step of binary segmentation
+## Second step of binary segmentation
 
 ```{r}
 plot2(200)
 ```
 
----
-
-# Efficient loss computation
+## Efficient loss computation
 
 - Minimization can be performed by choosing the split with loss (black
   point) which maximizes the decrease in loss with respect to previous
@@ -507,9 +449,7 @@ ggplot()+
 
 ```
 
----
-
-# Learning algorithm, implementation details
+## Learning algorithm, implementation details
 
 First compute the vectors of cumulative sums of data and squares,
 $y_1=z_1=0, y_t=\sum_{i=1}^{t-1} x_i, z_t=\sum_{i=1}^{t-1} x_i^2$, for
@@ -533,9 +473,7 @@ Use the cumsum trick to compute loss in constant time,
 $$\sum_{i=j}^t x_i = y_{t+1} - y_j.$$
 $$L_{j,t} = z_{t+1}-z_j - (y_{t+1}-y_j)^2/(t-j+1).$$
 
----
-
-# Learning algorithm, recursion/pseudo-code
+## Learning algorithm, recursion/pseudo-code
 
 Notation. Let $D_{j,e}(t)=L_{j,t}+L_{t+1,e}-L_{j,e}$ be the loss difference after splitting segment $(j,e)$ at $t$, and
 let $f(j,e)=\min,\argmin_{t\in \{j,\dots,e-1\}} D_{j,e}(t)$ be the best loss difference/split on segment $(j,e)$.
@@ -556,9 +494,7 @@ Recursion. For all $k\in\{2,\dots,K\}$: (max segments $K\leq n$)
 [\mathcal S_{k-1}\setminus (j^*_k, e^*_k, d^*_k, t^*_k)]
 \cup\mathcal V_k$ (segments to search)
 
----
-
-# Modification for min segment length
+## Modification for min segment length
 
 Sometimes there is prior knowledge that there should be no segments
 with fewer data points than $\ell\in\{1,2,\dots\}$, and in that case
@@ -571,9 +507,9 @@ there is a simple modification:
 \alert{e-j+1\geq 2\ell}\}
 \}$ (splittable segments)
 
----
+# Analysis of time complexity
 
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 one.pid.chr <- nb.dt[profile.id==2 & chromosome==2]
@@ -711,89 +647,67 @@ plot.iteration <- function(){
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Visualization of computations at each iteration
+## Visualization of computations at each iteration
 
 ```{r}
 plot.iteration()
 ```
 
----
-
-# Complexity analysis
+## Complexity analysis
 
 - Assume $n$ data and $K$ segments.
 - Computing best loss decrease and split point for a segment with $t$
@@ -806,9 +720,7 @@ plot.iteration()
   time. (maximize number of possible splits for which we have to
   recompute loss)
 
----
-
-# Detailed complexity analysis
+## Detailed complexity analysis
 
 - Let $n=2^J$ for some $J\in\{1,2,\dots\}$, for example $J=6
   \Rightarrow n=64$.
@@ -833,9 +745,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$ \\
 \end{tabular}
 ```
 
----
-
-# Real data time complexity analysis
+## Real data time complexity analysis
 
 ```{r, fig.height=4}
 N.exp <- 6
@@ -879,8 +789,8 @@ for(data.name in names(data.list)){
   s <- function(x)ifelse(x==1, 0, 1)
   new.segs <- fit$splits[, s(after.size)+s(before.size)]
   map.size.after.erase <- cumsum(c(1, new.segs[-1]-1))
-  ## print(data.name)
-  ## print(map.size.after.erase)
+  ### print(data.name)
+  ### print(map.size.after.erase)
   coef.dt <- coef(fit, 2:5)
   coef.dt[, panel := segments]
   segs.dt.list[[data.name]] <- data.table(
@@ -1045,97 +955,73 @@ max_segs <- function(max.seg.num){
 showCase("real")
 ```
 
----
-
-# Synthetic data time complexity analysis
+## Synthetic data time complexity analysis
 
 ```{r, fig.height=4}
 showCase("up.and.down")
 ```
 
----
-
-# Synthetic data time complexity analysis
+## Synthetic data time complexity analysis
 
 ```{r, fig.height=4}
 showCase("exponential")
 ```
 
----
-
-# Synthetic data time complexity analysis
+## Synthetic data time complexity analysis
 
 ```{r, fig.height=4}
 showCase("sin")
 ```
 
----
-
-# Synthetic data time complexity analysis
+## Synthetic data time complexity analysis
 
 ```{r, fig.height=4}
 showCase("linear")
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(2)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(3)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(4)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(5)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(6)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(7)
 ```
 
----
-
-# Synthetic data time complexity, vary max segments
+## Synthetic data time complexity, vary max segments
 
 ```{r}
 max_segs(8)
 ```
 
----
-
-# Optimal binary trees
+## Optimal binary trees
 
 \includegraphics{figure-optimal-trees-some}
 
@@ -1145,18 +1031,14 @@ max_segs(8)
 - [Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654) propose algorithm to compute optimal binary tree.
 - Is binary segmentation asympototically optimal speed in real data?
 
----
-
-# Empirical number of candidates (Poisson loss)
+## Empirical number of candidates (Poisson loss)
 
 \includegraphics[width=\textwidth]{figure-mcgill-iterations.png}
 
 - 2752 real genomic count data sets from McGill benchmark of data size $n$ from 87 to 263169, using binary segmentation with the Poisson loss. 
 - Number of candidate splits to consider in real data (grey dots) achieves the asymptotic best case, $O(n\log n)$.
 
----
-
-# Empirical number of candidates (Square loss)
+## Empirical number of candidates (Square loss)
 
 \includegraphics[width=\textwidth]{figure-neuroblastoma-iterations.png}
 
@@ -1164,9 +1046,9 @@ max_segs(8)
 - Number of candidate splits achieves the asymptotic best case, $O(n\log n)$, and in 45 instances (black circles) requires fewer candidate splits than predicted by the best case heuristic.
 - For max segments = 10, we used dynamic programming to compute the best case number of splits for all data sizes between 11 and 100 (orange line), and the heuristic (green line) was exact for only 5 data sizes $n\in\{11,12,13,18,19\}$ (purple circles).
 
----
+# Comparing empirical timings between implementations
 
-# Analysis of insert time and storage (STL list)
+## Analysis of insert time and storage (STL list)
 
 To store previously computed best loss/split for each segment, use
 C++ Standard template library list as baseline.
@@ -1193,9 +1075,7 @@ $\vdots$  &     $\vdots$  & $\vdots$ \\
 \end{tabular}
 ```
 
----
-
-# Analysis of insert time and storage (STL multiset)
+## Analysis of insert time and storage (STL multiset)
 
 To achieve asymptotic best case timings, use a
 C++ Standard template library multiset, keyed by loss decrease. If
@@ -1224,9 +1104,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 \end{tabular}
 ```
 
----
-
-# Timings (black) with asymptotic references (violet)
+## Timings (black) with asymptotic references (violet)
 
 \includegraphics[width=\textwidth]{figure-heap-refs-binsegRcpp-tex.png}
 
@@ -1236,9 +1114,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - binsegRcpp multiset is $O(N\log N)$ time, asymptotically
   faster than binsegRcpp list, $O(N^2)$ time.
 
----
-
-# Timings (black) with asymptotic references (violet)
+## Timings (black) with asymptotic references (violet)
 
 \includegraphics[width=\textwidth]{figure-heap-refs-others-tex.png}
 
@@ -1249,9 +1125,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - Not asymptotic optimal complexity.
 - Sub-optimal implementation.
 
----
-
-# Timing and throughput comparisons
+## Timing and throughput comparisons
 
 \includegraphics[width=\textwidth]{figure-heap-pred.png}
 
@@ -1262,17 +1136,14 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - about 500x larger throughput than ruptures.
 - about 1000x larger throughput than changepoint.
 
----
-
-# Comparing implementations of binary segmentation
+## Comparing implementations of binary segmentation
 
 \includegraphics{table-compare-binseg-packages}
 
-[Hocking arXiv:2410.08654 Finite Sample Complexity Analysis of Binary Segmentation](https://arxiv.org/abs/2410.08654).
+Hocking 2025 Comparing binsegRcpp to other implementations of binary
+segmentation, in progress.
 
----
-
-# Timings using square loss
+## Timings using square loss
 
 \includegraphics[width=\textwidth]{figure-timings.png}
 
@@ -1281,9 +1152,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - binsegRcpp list has larger slope: $O(n^2)$ time.
 - changepoint has even larger slope: $O(n^3)$ time.
 
----
-
-# Timings using L1 loss
+## Timings using L1 loss
 
 \includegraphics[width=\textwidth]{figure-timings-laplace.png}
 
@@ -1294,38 +1163,28 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - Worst case: all algorithms are quadratic, because that is the number
   of candidate change-points that must be considered.
 
----
-
-# Timings using Gaussian change in mean and variance model
+## Timings using Gaussian change in mean and variance model
 
 \includegraphics[width=\textwidth]{figure-timings-meanvar_norm.png}
 
----
-
-# Timings using Poisson loss
+## Timings using Poisson loss
 
 \includegraphics[width=\textwidth]{figure-timings-poisson.png}
 
----
-
-# Comparing loss functions, binsegRcpp multiset
+## Comparing loss functions, binsegRcpp multiset
 
 \includegraphics[width=\textwidth]{figure-compare-distributions.png}
 
 - Laplace (log-linear) is somewhat slower than others (linear).
 
----
-
-# Accuracy of binsegRcpp and changepoint
+## Accuracy of binsegRcpp and changepoint
 
 \includegraphics[width=\textwidth]{changepoint.bug.png}
 
 - Real data set for which changepoint does not compute the correct model.
 - Loss should be minimized at each iteration.
 
----
-
-# Conclusions
+## Conclusions
 
 - Binary segmentation is an important algorithm for change-point detection in sequential data.
 - Optimal binary trees used to determine best case number of
@@ -1335,9 +1194,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - `install.packages("binsegRcpp")` in R.
 - Future work: faster method for computing optimal binary trees?
 
----
-
-# Comparison with previous algorithms from clustering
+## Comparison with previous algorithms from clustering
 
 - Binary segmentation has segment/cluster-specific mean parameter, as
   in K-means and Gaussian mixture models. These algorithms attempt
@@ -1354,9 +1211,7 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
   time/space; hierarchical clustering joins may happen between any
   pair of data points (no space/time dimension).
 
----
-
-# Possible exam questions
+## Possible exam questions
 
 - Explain in detail one similarity and one difference between binary
   segmentation and k-means. (gaussian mixture models, hierarchical
