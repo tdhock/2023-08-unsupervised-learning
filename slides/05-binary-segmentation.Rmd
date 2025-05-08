@@ -1226,16 +1226,41 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 
 ---
 
-# Timings using L1 loss
+# Timings (black) with asymptotic references (violet)
 
-\includegraphics[width=\textwidth]{figure-timings-laplace.png}
+\includegraphics[width=\textwidth]{figure-heap-refs-binsegRcpp-tex.png}
 
-- Number of segments grows with data size, $K=O(n)$.
-- Best case: binsegRcpp multiset is $O(n\log n)$, asymptotically
-  faster than binsegRcpp list, $O(n^2)$.
-- ruptures is significantly slower (100x).
-- Worst case: all algorithms are quadratic, because that is the number
-  of candidate change-points that must be considered.
+- Number of segments grows with data size, $K=O(N)$.
+- Best case data, square loss.
+- Linear space, $O(N)$.
+- binsegRcpp multiset is $O(N\log N)$ time, asymptotically
+  faster than binsegRcpp list, $O(N^2)$ time.
+
+---
+
+# Timings (black) with asymptotic references (violet)
+
+\includegraphics[width=\textwidth]{figure-heap-refs-others-tex.png}
+
+- Number of segments grows with data size, $K=O(N)$.
+- Best case data, square loss.
+- changepoint is $O(N^2)$ space, $O(N^3)$ time.
+- ruptures is $O(N)$ space, $O(N^{1.4})$ time (unclear why)
+- Not asymptotic optimal complexity.
+- Sub-optimal implementation.
+
+---
+
+# Timing and throughput comparisons
+
+\includegraphics[width=\textwidth]{figure-heap-pred.png}
+
+- Number of segments grows with data size, $K=O(N)$.
+- Best case data, square loss.
+- in 5 seconds, binsegRcpp using multiset or priority queue has 100x larger
+  throughput than list.
+- about 500x larger throughput than ruptures.
+- about 1000x larger throughput than changepoint.
 
 ---
 
@@ -1255,6 +1280,19 @@ $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ \\
 - ruptures is between $O(n\log n)$ and $O(n^2)$ time, but with large constant factors.
 - binsegRcpp list has larger slope: $O(n^2)$ time.
 - changepoint has even larger slope: $O(n^3)$ time.
+
+---
+
+# Timings using L1 loss
+
+\includegraphics[width=\textwidth]{figure-timings-laplace.png}
+
+- Number of segments grows with data size, $K=O(n)$.
+- Best case: binsegRcpp multiset is $O(n\log n)$, asymptotically
+  faster than binsegRcpp list, $O(n^2)$.
+- ruptures is significantly slower (100x).
+- Worst case: all algorithms are quadratic, because that is the number
+  of candidate change-points that must be considered.
 
 ---
 
