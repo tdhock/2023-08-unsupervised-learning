@@ -359,6 +359,7 @@ viz <- animint(
     scale_y_reverse(),
   features=ggplot()+
     ggtitle("Decisions at selected iteration")+
+    theme_animint(last_in_row=TRUE)+
     geom_rect(aes(
       xmin=V1min, xmax=V1max,
       ymin=V2min, ymax=V2max,
@@ -408,6 +409,7 @@ viz <- animint(
     ggtitle("Loss decrease for selected iteration; select Node and Split")+
     theme_bw()+
     theme_animint(
+      colspan=3,
       width=1100)+
     facet_grid(. ~ Feature, labeller=label_both)+
     scale_y_continuous(
@@ -487,6 +489,10 @@ viz <- animint(
       color_off="transparent",
       clickSelects="Split",
       showSelected=c("iteration","Node")),
+  first=list(
+    iteration=4,
+    Node=7,
+    Split="X2<0.562735"),
   duration=list(
     iteration=2000),
   out.dir="20-decision-trees"
@@ -494,7 +500,7 @@ viz <- animint(
 viz
 
 if(FALSE){
-  animint2pages(viz, "2024-11-23-greedy-decision-tree")
+  animint2pages(viz, "2024-11-23-greedy-decision-tree", chromote_sleep_seconds = 5)
 }
 
 ## in feature plot, add aes(color=correct) to geom_point, by computing
