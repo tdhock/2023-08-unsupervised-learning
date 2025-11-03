@@ -734,12 +734,12 @@ plot.iteration()
 
 ## Detailed complexity analysis
 
-- Let $n=2^J$ for some $J\in\{1,2,\dots\}$, for example $J=6
-  \Rightarrow n=64$.
-- For any $j\in\{1,\dots,J+1\}$ if we do $K=2^{j-1}$ iterations
+- Let $n=2^J$ for some depth parameter $J\in\{1,2,\dots\}$.
+- For example $J=6 \Rightarrow n=64$ data.
+- For any tree depth $j\in\{1,\dots,J+1\}$ if we do $K=2^{j-1}$ iterations
   then how many split cost values to compute?
-- Best case: $nj -2^j + 1 = n(1+\log_2 K) -K/2 +1 \Rightarrow O(n \log K)$.
-- Worst case: $nK - K(1+K)/2 \Rightarrow O(nK)$.
+- Best case: $nj -2^j + 1 = n(1+\log_2 K) -2K +1 \Rightarrow O(n \log K)$.
+- Worst case: $nK - K(1+K)/2 \leq nK \Rightarrow O(nK)$.
  
 ```{=latex}
 \small
@@ -753,7 +753,7 @@ $j$ & $K$ & best & total & worst & total \\
 $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$\\
 4 & 8 & $n/4-2=14$& $4n-15=241$ & $n-8=56$ & $8n-36=476$ \\
 $\vdots$ &     $\vdots$ &     $\vdots$  & $\vdots$ & $\vdots$ & $\vdots$ \\
-7 & 64 & $n/32-2=0$&$7n-128=321$ & $n-64=0$ & $64n-2080=2016$ \\
+7 & 64 & $n/32-2=0$&$7n-127=321$ & $n-64=0$ & $64n-2080=2016$ \\
 \end{tabular}
 ```
 
